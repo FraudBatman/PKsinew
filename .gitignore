@@ -5,7 +5,7 @@
 !*
 # --- ROMs (never commit) ---
 
-roms/*
+roms/**
 
 # --- Runtime / generated data ---
 cache/
