@@ -4,8 +4,8 @@
 # Override parent ignore
 !*
 # --- ROMs (never commit) ---
-roms/
-roms/**
+
+roms/*
 
 # --- Runtime / generated data ---
 cache/
