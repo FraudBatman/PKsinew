@@ -30,7 +30,7 @@ data/pokemon_db.json
 exports/
 include/
 scripts/
-sinew_settings.json/
+sinew_settings.json
 sinew/sinew_storage.json
 sinew/sinew_storage_backup.json
 data/sprites/title/emerald.gif
