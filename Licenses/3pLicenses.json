@@ -71,6 +71,16 @@
             "Used as an achievement / reward icon."
           ]
         },
+                {
+          "name": "Refresh Icon",
+          "lines": [
+            "Source: freeiconspng.com",
+            "Refresh icon",
+            "https://www.freeiconspng.com/img/10829",
+            "",
+            "Used mirrored as undo user interface icon."
+          ]
+        },
         {
           "name": "Hoenn Gym Badges — Ultimate Pack",
           "lines": [
