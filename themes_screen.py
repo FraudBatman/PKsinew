@@ -64,10 +64,6 @@ class ThemesScreen:
         
         # Navigation
         self.selected_index = 0
-        # Set selected to current theme
-        if self.current_theme in self.themes:
-            self.selected_index = self.themes.index(self.current_theme)
-        
         self.scroll_offset = 0
         self.themes_per_page = 5
         

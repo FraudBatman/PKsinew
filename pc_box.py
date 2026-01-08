@@ -228,6 +228,19 @@ class PCBox:
         
         # Undo button rect - set dynamically during draw when undo is available
         self.undo_button_rect = None
+        
+        # Load undo/refresh icon
+        self.undo_icon = None
+        self.undo_icon_tinted = None
+        self._undo_icon_last_color = None
+        try:
+            icon_path = "data/sprites/icons/refresh-icon.png"
+            if os.path.exists(icon_path):
+                self.undo_icon = pygame.image.load(icon_path).convert_alpha()
+                # Scale to fit button (24x24 for a 32x32 button)
+                self.undo_icon = pygame.transform.smoothscale(self.undo_icon, (24, 24))
+        except Exception as e:
+            print(f"[PCBox] Failed to load undo icon: {e}")
 
         self.left_game_arrow = Button("<", rel_rect=(0.31, 0.02, 0.04, 0.09),
                                       callback=lambda: self.change_game(-1))
@@ -3414,12 +3427,29 @@ class PCBox:
                     pygame.draw.rect(surf, ui_colors.COLOR_BUTTON, undo_rect)
                     pygame.draw.rect(surf, ui_colors.COLOR_BORDER, undo_rect, 2)
                 
-                # Draw "U" text
+                # Draw undo icon (tinted to theme color)
                 try:
-                    undo_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
-                    u_surf = undo_font.render("U", True, ui_colors.COLOR_TEXT)
-                    u_rect = u_surf.get_rect(center=undo_rect.center)
-                    surf.blit(u_surf, u_rect)
+                    if self.undo_icon:
+                        # Get current theme text color
+                        current_color = ui_colors.COLOR_TEXT[:3] if len(ui_colors.COLOR_TEXT) >= 3 else (255, 255, 255)
+                        
+                        # Re-tint icon if color changed or not yet tinted
+                        if self._undo_icon_last_color != current_color or self.undo_icon_tinted is None:
+                            self._undo_icon_last_color = current_color
+                            # Create tinted copy
+                            self.undo_icon_tinted = self.undo_icon.copy()
+                            # Apply color tint by filling with color and using BLEND_RGB_MULT
+                            self.undo_icon_tinted.fill(current_color + (0,), special_flags=pygame.BLEND_RGB_MULT)
+                        
+                        # Draw the tinted icon centered in button
+                        icon_rect = self.undo_icon_tinted.get_rect(center=undo_rect.center)
+                        surf.blit(self.undo_icon_tinted, icon_rect)
+                    else:
+                        # Fallback to "U" text if icon not loaded
+                        undo_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
+                        u_surf = undo_font.render("U", True, ui_colors.COLOR_TEXT)
+                        u_rect = u_surf.get_rect(center=undo_rect.center)
+                        surf.blit(u_surf, u_rect)
                 except:
                     pass
             else:

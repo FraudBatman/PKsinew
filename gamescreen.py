@@ -1883,17 +1883,20 @@ class GameScreen:
         else:
             print("[GameScreen] No ROMs detected in roms/ folder")
         
-        # Load Sinew logo
+        # Load Sinew background image (scaled to screen size like other games)
         self.sinew_logo = None
         self.sinew_bg_color = (255, 255, 255)  # Default white
         sinew_logo_path = "data/sprites/title/PKSINEW.png"
         if os.path.exists(sinew_logo_path):
             try:
-                self.sinew_logo = pygame.image.load(sinew_logo_path).convert_alpha()
-                # Sample background color from top-left corner
-                self.sinew_bg_color = self.sinew_logo.get_at((0, 0))[:3]
+                # Load and scale to screen size like other game backgrounds
+                pil_img = Image.open(sinew_logo_path)
+                pil_img = pil_img.convert("RGBA").resize((self.width, self.height), Image.NEAREST)
+                data = pil_img.tobytes()
+                self.sinew_logo = pygame.image.fromstring(data, pil_img.size, pil_img.mode).convert_alpha()
+                pil_img.close()
             except Exception as e:
-                print(f"Failed to load Sinew logo: {e}")
+                print(f"Failed to load Sinew background: {e}")
     
     def refresh_games(self):
         """Re-detect games (call if ROMs were added/removed)"""
@@ -2867,12 +2870,12 @@ class GameScreen:
         game_data = self.games[gname]
         
         if self.is_on_sinew():
-            # Sinew background with logo centered in top half
-            surf.fill(self.sinew_bg_color)
+            # Sinew background - full screen like other games
             if self.sinew_logo:
-                logo_rect = self.sinew_logo.get_rect(center=(self.width // 2, self.height // 4))
-                surf.blit(self.sinew_logo, logo_rect)
-            text_color = (0, 0, 0)
+                surf.blit(self.sinew_logo, (0, 0))
+            else:
+                surf.fill(self.sinew_bg_color)
+            text_color = (255, 255, 255)
         elif game_data["frames"]:
             bg_surf = game_data["frames"][game_data["frame_index"]]
             surf.blit(bg_surf, (0, 0))
@@ -2914,11 +2917,6 @@ class GameScreen:
                 callback=lambda: None
             )
             menu_button.draw(surf, self.font)
-            
-            # Draw game name at bottom
-            game_text = self.font.render(gname, True, text_color)
-            game_rect = game_text.get_rect(center=(self.width // 2, self.height - 20))
-            surf.blit(game_text, game_rect)
             
             # Show "Resume Game" hint if emulator is paused
             if self.emulator and self.emulator.loaded and not self.emulator_active:

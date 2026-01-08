@@ -640,7 +640,6 @@ class MainSetup:
                 {"name": "Fullscreen", "type": "toggle", "value": False},
                 {"name": "Mute Menu Music", "type": "toggle", "value": False},
                 {"name": "Themes", "type": "button"},
-                {"name": "Clear Cache", "type": "button"},
                 {"name": "Build/Rebuild Pokemon DB", "type": "button"},
             ],
             "Controller": [
@@ -657,9 +656,9 @@ class MainSetup:
                 {"name": "Check for Updates", "type": "button"},
             ],
             "Dev": [
+                {"name": "Clear Cache", "type": "button"},
                 {"name": "Reset ALL Achievements", "type": "button"},
                 {"name": "Reset Game Achievements...", "type": "button"},
-                {"name": "View Unlocked Achievements", "type": "button"},
                 {"name": "Export Achievement Data", "type": "button"},
             ],
         }
@@ -882,8 +881,6 @@ class MainSetup:
             )
         elif name == "Reset Game Achievements...":
             self._open_game_achievement_selector()
-        elif name == "View Unlocked Achievements":
-            self._open_unlocked_achievements_viewer()
         elif name == "Export Achievement Data":
             self._export_achievement_data()
         else:

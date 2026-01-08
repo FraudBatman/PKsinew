@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fetch Gen3 sprites (normal + shiny), Gen8 icons, item sprites (Poké Ball, Master Ball, Eggs),
+Fetch Gen3 sprites (normal + shiny), item sprites (Poké Ball, Master Ball, Eggs),
 and metadata (description, abilities, egg groups, evolution chain, forms, types, stats, height, weight).
 Only downloads missing files and metadata.
 Saves everything under data/ with separate folders.
@@ -18,13 +18,12 @@ DATA_DIR = "data"
 SPRITES_DIR = os.path.join(DATA_DIR, "sprites")
 GEN3_NORMAL_DIR = os.path.join(SPRITES_DIR, "gen3", "normal")
 GEN3_SHINY_DIR = os.path.join(SPRITES_DIR, "gen3", "shiny")
-GEN8_ICONS_DIR = os.path.join(SPRITES_DIR, "gen8", "icons")
 ITEMS_DIR = os.path.join(SPRITES_DIR, "items")
 
 DB_PATH = os.path.join(DATA_DIR, "pokemon_db.json")
 
 # Create directories
-for d in (GEN3_NORMAL_DIR, GEN3_SHINY_DIR, GEN8_ICONS_DIR, ITEMS_DIR):
+for d in (GEN3_NORMAL_DIR, GEN3_SHINY_DIR, ITEMS_DIR):
     os.makedirs(d, exist_ok=True)
 
 # HTTP
@@ -80,7 +79,7 @@ def parse_evolution_chain(chain_node: Dict) -> List[Dict]:
     return results
 
 # -------------------------
-# Corrected item sprites (Poké Ball, Master Ball, 2km/5km/10km Eggs)
+# Item sprites (Poké Ball, Master Ball, Eggs)
 # -------------------------
 ITEM_SPRITES = {
     "pokeball": "poke-ball.png",
@@ -117,25 +116,18 @@ if "items" not in pokemon_db:
 for i in range(1, MAX_POKEMON + 1):
     pid_str = f"{i:03d}"
 
-    # Check if DB already has this Pokémon with height/weight and all files exist
     db_entry = pokemon_db.get(pid_str, {})
     has_height_weight = db_entry.get("height") is not None and db_entry.get("weight") is not None
-    files_exist = True
+
     required_files = [
         os.path.join(GEN3_NORMAL_DIR, f"{pid_str}.png"),
         os.path.join(GEN3_SHINY_DIR, f"{pid_str}.png"),
-        os.path.join(GEN8_ICONS_DIR, f"{pid_str}.png")
     ]
-    for f in required_files:
-        if not os.path.exists(f):
-            files_exist = False
-            break
 
-    if db_entry and files_exist and has_height_weight:
+    if db_entry and has_height_weight and all(os.path.exists(f) for f in required_files):
         print(f"[{pid_str}] {db_entry.get('name', str(i))}: all files already exist, skipping")
         continue
 
-    # Fetch from API
     try:
         pokemon_url = f"https://pokeapi.co/api/v2/pokemon/{i}/"
         species_url = f"https://pokeapi.co/api/v2/pokemon-species/{i}/"
@@ -145,24 +137,17 @@ for i in range(1, MAX_POKEMON + 1):
             print(f"[{pid_str}] FAILED pokemon endpoint ({p_resp.status_code})")
             time.sleep(0.2)
             continue
-        p_data = p_resp.json()
 
+        p_data = p_resp.json()
         s_resp = SESSION.get(species_url, timeout=10)
         species_data = s_resp.json() if s_resp.status_code == 200 else {}
 
         name = p_data.get("name")
         display_name = name.capitalize() if name else str(i)
 
-        # ------------------------------------------------------
-        # Height and Weight (from PokeAPI)
-        # height is in decimeters, weight is in hectograms
-        # ------------------------------------------------------
-        height = p_data.get("height")  # decimeters (e.g., 4 = 0.4m)
-        weight = p_data.get("weight")  # hectograms (e.g., 60 = 6.0kg)
+        height = p_data.get("height")   # decimeters
+        weight = p_data.get("weight")   # hectograms
 
-        # ------------------------------------------------------
-        # Gen 3 sprite URLs (emerald > FRLG > RS)
-        # ------------------------------------------------------
         gen3_versions = p_data.get("sprites", {}).get("versions", {}).get("generation-iii", {}) or {}
         gen3_emerald = gen3_versions.get("emerald") or {}
         gen3_frlg = gen3_versions.get("firered-leafgreen") or {}
@@ -185,74 +170,39 @@ for i in range(1, MAX_POKEMON + 1):
         dl_gen3 = download_file(gen3_url_normal, gen3_normal_path)
         dl_gen3_shiny = download_file(gen3_url_shiny, gen3_shiny_path)
 
-        # ------------------------------------------------------
-        # Gen 8 icon
-        # ------------------------------------------------------
-        gen8_icon_path = os.path.join(GEN8_ICONS_DIR, f"{pid_str}.png")
-        gen8_icon_url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/{i}.png"
-        dl_gen8_icon = download_file(gen8_icon_url, gen8_icon_path)
-
-        # -------------------------
-        # Abilities
-        # -------------------------
         abilities = [
             ab.get("ability", {}).get("name", "").replace("-", " ").title()
             for ab in p_data.get("abilities", [])
         ]
 
-        # -------------------------
-        # Egg groups
-        # -------------------------
         egg_groups = [
             eg.get("name", "").replace("-", " ").title()
             for eg in species_data.get("egg_groups", [])
         ]
 
-        # -------------------------
-        # Types
-        # -------------------------
         types = [
             t.get("type", {}).get("name", "").title()
             for t in sorted(p_data.get("types", []), key=lambda x: x.get("slot", 0))
         ]
 
-        # -------------------------
-        # Stats
-        # -------------------------
         stats = {s["stat"]["name"]: s["base_stat"] for s in p_data.get("stats", [])}
-
-        # -------------------------
-        # Forms
-        # -------------------------
         forms = [f.get("name") for f in p_data.get("forms", [])]
 
-        # -------------------------
-        # Evolution chain
-        # -------------------------
         evolution_chain_info = None
         evo_url = species_data.get("evolution_chain", {}).get("url")
         if evo_url:
-            try:
-                evo_resp = SESSION.get(evo_url, timeout=10)
-                if evo_resp.status_code == 200:
-                    evolution_chain_info = parse_evolution_chain(evo_resp.json().get("chain", {}))
-            except Exception:
-                evolution_chain_info = None
+            evo_resp = SESSION.get(evo_url, timeout=10)
+            if evo_resp.status_code == 200:
+                evolution_chain_info = parse_evolution_chain(evo_resp.json().get("chain", {}))
 
-        # -------------------------
-        # Description
-        # -------------------------
         description = get_english_description(species_data)
 
-        # -------------------------
-        # Build DB entry
-        # -------------------------
         pokemon_db[pid_str] = {
             "id": i,
             "name": display_name,
             "types": types,
-            "height": height,      # in decimeters
-            "weight": weight,      # in hectograms
+            "height": height,
+            "weight": weight,
             "description": description,
             "abilities": abilities,
             "egg_groups": egg_groups,
@@ -262,16 +212,15 @@ for i in range(1, MAX_POKEMON + 1):
             "sprites": {
                 "gen3_normal": f"sprites/gen3/normal/{pid_str}.png" if os.path.exists(gen3_normal_path) else None,
                 "gen3_shiny": f"sprites/gen3/shiny/{pid_str}.png" if os.path.exists(gen3_shiny_path) else None,
-                "gen8_icon": f"sprites/gen8/icons/{pid_str}.png" if os.path.exists(gen8_icon_path) else None,
             },
             "games": ["Ruby", "Sapphire", "Emerald", "FireRed", "LeafGreen"]
         }
 
-        # log
         parts = []
-        if dl_gen3: parts.append("gen3")
-        if dl_gen3_shiny: parts.append("gen3-shiny")
-        if dl_gen8_icon: parts.append("gen8-icon")
+        if dl_gen3:
+            parts.append("gen3")
+        if dl_gen3_shiny:
+            parts.append("gen3-shiny")
 
         if parts:
             print(f"[{pid_str}] {display_name}: downloaded {', '.join(parts)}, h={height} w={weight}")
@@ -283,7 +232,6 @@ for i in range(1, MAX_POKEMON + 1):
     except Exception as e:
         print(f"[{pid_str}] ERROR: {e}")
         time.sleep(0.5)
-        continue
 
 # Save DB
 with open(DB_PATH, "w", encoding="utf-8") as fh:
@@ -293,5 +241,4 @@ print("\nDone. Database saved to:", DB_PATH)
 print("Sprite folders:")
 print(" ", GEN3_NORMAL_DIR)
 print(" ", GEN3_SHINY_DIR)
-print(" ", GEN8_ICONS_DIR)
 print(" ", ITEMS_DIR)

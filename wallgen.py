@@ -3,10 +3,15 @@ import os
 import math
 
 # ----------------- SETTINGS -----------------
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 WIDTH, HEIGHT = 480, 320
 GRID_THICKNESS = 2
 LOGO_SCALE = 0.6
-TEXT_FONT_PATH = "fonts/Pokemon Solid.ttf"
+
+# Use absolute paths based on script location
+TEXT_FONT_PATH = os.path.join(SCRIPT_DIR, "fonts", "Pokemon Solid.ttf")
 
 THEMES = {
     "firered":   ((120, 10, 10), (220, 60, 30)),
@@ -16,8 +21,8 @@ THEMES = {
     "emerald":   ((0, 70, 50), (40, 200, 140)),
 }
 
-LOGO_PATH = "data/sprites/title/SINEW.png"
-OUT_DIR = "data/sprites/title"
+LOGO_PATH = os.path.join(SCRIPT_DIR, "data", "sprites", "title", "SINEW.png")
+OUT_DIR = os.path.join(SCRIPT_DIR, "data", "sprites", "title")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # ----------------- BACKGROUNDS -----------------
@@ -85,7 +90,7 @@ def overlay_scanlines(img, x, y, w, h, opacity=50):
 def paste_logo_or_text(bg, name):
     if name.lower() == "sinew":
         if not os.path.exists(LOGO_PATH):
-            print(f"⚠️ Logo not found: {LOGO_PATH}")
+            print("[!] Logo not found: %s" % LOGO_PATH)
             return
         logo = Image.open(LOGO_PATH).convert("RGBA")
         scale = (WIDTH * LOGO_SCALE) / logo.width
@@ -95,10 +100,18 @@ def paste_logo_or_text(bg, name):
         bg.alpha_composite(logo, (x, y))
         overlay_scanlines(bg, x, y, logo.width, logo.height, opacity=50)
     else:
-        # Pokémon game names: uppercase, centered, black outline
+        # Pokemon game names: uppercase, centered, black outline
         name = name.upper()
         font_size = 48
-        font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
+        
+        # Check if font exists
+        if not os.path.exists(TEXT_FONT_PATH):
+            print("[!] Font not found: %s" % TEXT_FONT_PATH)
+            print("    Using default font instead")
+            font = ImageFont.load_default()
+        else:
+            font = ImageFont.truetype(TEXT_FONT_PATH, font_size)
+        
         bbox = font.getbbox(name)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
@@ -138,9 +151,9 @@ def generate_game_wallpaper(name, colors):
     draw_border(bg, thickness=6, color=(*colors[1], 120))
     paste_logo_or_text(bg, name)
     # Save as PNG but rename file to .gif
-    out_path = os.path.join(OUT_DIR, f"{name.lower()}.gif")
+    out_path = os.path.join(OUT_DIR, "%s.gif" % name.lower())
     bg.save(out_path, format="PNG")
-    print(f"✓ {out_path} generated")
+    print("[OK] %s generated" % out_path)
 
 
 def generate_sinew_wallpaper():
@@ -156,11 +169,18 @@ def generate_sinew_wallpaper():
     paste_logo_or_text(bg, "sinew")
     out_path = os.path.join(OUT_DIR, "PKSINEW.png")
     bg.save(out_path)
-    print(f"✓ {out_path} generated")
+    print("[OK] %s generated" % out_path)
 
 # ----------------- RUN -----------------
-for game, colors in THEMES.items():
-    generate_game_wallpaper(game, colors)
+if __name__ == "__main__":
+    print("Script directory: %s" % SCRIPT_DIR)
+    print("Font path: %s" % TEXT_FONT_PATH)
+    print("Output directory: %s" % OUT_DIR)
+    print("")
+    
+    for game, colors in THEMES.items():
+        generate_game_wallpaper(game, colors)
 
-generate_sinew_wallpaper()
-print("🎉 All wallpapers generated!")
+    generate_sinew_wallpaper()
+    print("")
+    print("All wallpapers generated!")
