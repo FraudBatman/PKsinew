@@ -18,7 +18,7 @@ SINEW_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "Sinew")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Emulator paths
-MGBA_CORE_PATH = os.path.join(BASE_DIR, "cores", "mgba_libretro.dll")
+MGBA_CORE_PATH = os.path.join(BASE_DIR, "cores", "mgba_libretro.dll", "mgba_libretro.so", "mgba_libretro.dylib")
 SYSTEM_DIR = os.path.join(BASE_DIR, "system")
 
 # ROM and save directories - unified for both parser and emulator
