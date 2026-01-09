@@ -1,6 +1,5 @@
 """
-Sinew Game Screen - Integrated Version (patched)
-Works as a screen within main.py rather than standalone
+Sinew Game Screen - Integrated Version
 """
 
 import os
