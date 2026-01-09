@@ -209,6 +209,12 @@ class PCBox:
         # ------------------- Warning Message State -------------------
         self.warning_message = None
         
+        # ------------------- Resume Banner State -------------------
+        self._resume_banner_scroll_offset = 0
+        self._resume_banner_scroll_speed = 1.5
+        self._resume_banner_pulse_time = 0
+        self._pause_combo_setting = self._load_pause_combo_setting()
+        
         # ------------------- Undo State -------------------
         self.undo_available = False
         self.undo_action = None  # {'type': 'move'/'release', 'data': {...}}
@@ -2539,6 +2545,117 @@ class PCBox:
                 return True
             except:
                 return False
+    
+    def _get_pause_combo_name(self):
+        """Get human-readable name for the pause combo"""
+        setting = self._pause_combo_setting
+        if setting.get("type") == "custom":
+            return f"Button {setting.get('button', '?')}"
+        else:
+            buttons = setting.get("buttons", ["START", "SELECT"])
+            return "+".join(buttons)
+    
+    def _get_running_game_name(self):
+        """Get the name of the currently running/paused game"""
+        if self.is_game_running_callback:
+            return self.is_game_running_callback()
+        return None
+    
+    def _draw_resume_banner(self, surf):
+        """
+        Draw a dropdown banner from the top showing game is paused.
+        Shows "[gamename]" running • Hold [combo] to resume
+        with pulsing animation and scrolling text if too long.
+        """
+        import math
+        
+        # Get game name from callback
+        game_name = self._get_running_game_name()
+        if not game_name:
+            return
+        
+        combo_name = self._get_pause_combo_name()
+        
+        # Build the full text
+        full_text = f'"{game_name}" running  •  Hold {combo_name} to resume'
+        
+        # Banner dimensions - shorter and centered box
+        banner_height = 21
+        banner_width = int(self.width * 0.85)
+        banner_x = (self.width - banner_width) // 2
+        banner_y = 4
+        padding = 12
+        border_radius = 6
+        
+        # Update pulse time
+        self._resume_banner_pulse_time += 0.08
+        pulse = (math.sin(self._resume_banner_pulse_time) + 1) / 2  # 0 to 1
+        
+        # Pulsing background color (dark amber to lighter amber)
+        bg_r = int(40 + 25 * pulse)
+        bg_g = int(35 + 20 * pulse)
+        bg_b = int(15 + 10 * pulse)
+        
+        # Draw banner background with rounded corners
+        banner_rect = pygame.Rect(banner_x, banner_y, banner_width, banner_height)
+        pygame.draw.rect(surf, (bg_r, bg_g, bg_b), banner_rect, border_radius=border_radius)
+        
+        # Pulsing border (gold tones)
+        border_r = int(180 + 75 * pulse)
+        border_g = int(140 + 60 * pulse)
+        border_b = int(30 + 30 * pulse)
+        pygame.draw.rect(surf, (border_r, border_g, border_b), banner_rect, 2, border_radius=border_radius)
+        
+        # Render text using the same font as the rest of the app
+        try:
+            banner_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+        except:
+            try:
+                banner_font = pygame.font.Font(None, 18)
+            except:
+                banner_font = pygame.font.SysFont(None, 18)
+        
+        # Pulsing text color
+        text_r = int(200 + 55 * pulse)
+        text_g = int(180 + 55 * pulse)
+        text_b = int(100 + 50 * pulse)
+        text_color = (text_r, text_g, text_b)
+        
+        text_surf = banner_font.render(full_text, True, text_color)
+        text_width = text_surf.get_width()
+        
+        # Available width for text (inside the box)
+        available_width = banner_width - (padding * 2)
+        
+        if text_width <= available_width:
+            # Text fits - center it
+            text_x = banner_x + (banner_width - text_width) // 2
+            text_y = banner_y + (banner_height - text_surf.get_height()) // 2
+            surf.blit(text_surf, (text_x, text_y))
+        else:
+            # Text too long - scroll it
+            clip_rect = pygame.Rect(banner_x + padding, banner_y, available_width, banner_height)
+            
+            # Update scroll offset
+            scroll_width = text_width + 60  # Add gap before repeat
+            self._resume_banner_scroll_offset += self._resume_banner_scroll_speed
+            if self._resume_banner_scroll_offset >= scroll_width:
+                self._resume_banner_scroll_offset = 0
+            
+            # Calculate text position (scrolling left)
+            text_x = banner_x + padding - self._resume_banner_scroll_offset
+            text_y = banner_y + (banner_height - text_surf.get_height()) // 2
+            
+            # Draw text with clipping
+            old_clip = surf.get_clip()
+            surf.set_clip(clip_rect)
+            
+            surf.blit(text_surf, (text_x, text_y))
+            # Draw second copy for seamless scrolling
+            if text_x + text_width < banner_x + padding + available_width:
+                surf.blit(text_surf, (text_x + scroll_width, text_y))
+            
+            surf.set_clip(old_clip)
 
     # ------------------- Data Management -------------------
     
@@ -3610,6 +3727,7 @@ class PCBox:
                                 surf.blit(text_surf, text_rect)
                             except:
                                 pass
+        
         # Draw options menu overlay (on top of everything)
         self._draw_move_mode_overlay(surf)
         self._draw_options_menu(surf)
@@ -4060,7 +4178,7 @@ class PCBox:
             
             # Show success message
             self.warning_message = f"Obtained {result_pokemon['name']}!"
-            self.warning_message_timer = self.warning_message_duration * 2  # Show longer
+            self.warning_message_timer = int(self.warning_message_duration * 1.25)  # Show slightly longer
             
             # Refresh display
             self.refresh_data()

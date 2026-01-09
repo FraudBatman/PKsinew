@@ -824,12 +824,12 @@ class PokemonGenerator:
         perm_index = pid % 24
         order = PERMUTATIONS[perm_index]
         
-        # order[i] = which substructure TYPE goes in position i
-        # We need the inverse: for each type, where does it go?
-        substructs = [growth, attacks, evs, misc]
+        # Format: order[TYPE] = POSITION
+        # order[0] = position where Growth goes, order[1] = position where Attacks goes, etc.
+        substructs = [growth, attacks, evs, misc]  # indexed by type
         arranged = bytearray(48)
-        for pos, struct_type in enumerate(order):
-            arranged[pos * 12:(pos + 1) * 12] = substructs[struct_type]
+        for type_idx, position in enumerate(order):
+            arranged[position * 12:(position + 1) * 12] = substructs[type_idx]
         
         # Calculate checksum before encryption
         checksum = calculate_checksum(bytes(arranged))

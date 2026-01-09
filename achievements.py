@@ -726,7 +726,7 @@ class AchievementManager:
         return self.get_reward_info(achievement_id) is not None
     
     def get_unclaimed_rewards_count(self):
-        """Count achievements that are unlocked, have rewards, but haven't been claimed"""
+        """Count achievements that are unlocked, have rewards, and should be shown for claiming"""
         from achievements_data import ACHIEVEMENT_REWARDS, GAME_SPECIFIC_REWARDS, PERGAME_ACHIEVEMENT_REWARDS, GAMES, GAME_PREFIX
         
         count = 0
@@ -734,12 +734,14 @@ class AchievementManager:
         # Check ACHIEVEMENT_REWARDS
         for ach_id in ACHIEVEMENT_REWARDS:
             if self.is_unlocked(ach_id) and not self.is_reward_claimed(ach_id):
-                count += 1
+                if self.should_show_reward(ach_id):
+                    count += 1
         
         # Check GAME_SPECIFIC_REWARDS
         for ach_id in GAME_SPECIFIC_REWARDS:
             if self.is_unlocked(ach_id) and not self.is_reward_claimed(ach_id):
-                count += 1
+                if self.should_show_reward(ach_id):
+                    count += 1
         
         # Check PERGAME_ACHIEVEMENT_REWARDS (for each game)
         for suffix in PERGAME_ACHIEVEMENT_REWARDS:
@@ -747,7 +749,8 @@ class AchievementManager:
                 prefix = GAME_PREFIX.get(game, game.upper()[:4])
                 full_id = f"{prefix}{suffix}"
                 if self.is_unlocked(full_id) and not self.is_reward_claimed(full_id):
-                    count += 1
+                    if self.should_show_reward(full_id):
+                        count += 1
         
         return count
     
@@ -852,6 +855,53 @@ class AchievementManager:
         except Exception as e:
             print(f"[Achievements] Error unlocking theme: {e}")
             return False
+    
+    def _is_theme_unlocked(self, theme_filename):
+        """Check if a theme is already unlocked"""
+        try:
+            import json
+            import os
+            
+            settings_path = os.path.join(os.path.dirname(__file__), "sinew_settings.json")
+            
+            if os.path.exists(settings_path):
+                with open(settings_path, 'r') as f:
+                    settings = json.load(f)
+                    unlocked = settings.get("unlocked_themes", [])
+                    return theme_filename in unlocked
+            return False
+        except Exception:
+            return False
+    
+    def should_show_reward(self, achievement_id):
+        """
+        Determine if an achievement reward should be shown/pinned for claiming.
+        - Theme-only rewards: skip if theme already unlocked
+        - Pokemon rewards (or both): always show (can claim multiple times)
+        """
+        reward = self.get_reward_info(achievement_id)
+        if not reward:
+            return False
+        
+        reward_type = reward.get("type", "")
+        
+        # Pokemon rewards can always be claimed again
+        if reward_type == "pokemon":
+            return True
+        
+        # "both" rewards (theme + pokemon) - show if pokemon not claimed OR theme not unlocked
+        if reward_type == "both":
+            # Always allow because it includes a Pokemon
+            return True
+        
+        # Theme-only rewards - skip if theme already unlocked
+        if reward_type == "theme":
+            theme_file = reward.get("value", "")
+            if self._is_theme_unlocked(theme_file):
+                return False
+            return True
+        
+        return True
     
     def _deliver_pokemon(self, achievement_id):
         """
@@ -1734,7 +1784,10 @@ class AchievementsScreen:
             is_unlocked = self.manager.is_unlocked(ach_id)
             has_reward = self.manager.has_reward(ach_id)
             reward_claimed = self.manager.is_reward_claimed(ach_id)
-            has_unclaimed_gift = is_unlocked and has_reward and not reward_claimed
+            # Only show as unclaimed if should_show_reward returns True
+            # (skips theme-only rewards that are already unlocked)
+            should_show = self.manager.should_show_reward(ach_id) if has_reward else False
+            has_unclaimed_gift = is_unlocked and has_reward and not reward_claimed and should_show
             
             if has_unclaimed_gift:
                 # Priority 0: unclaimed gifts at very top
@@ -1961,10 +2014,11 @@ class AchievementsScreen:
                 is_selected = (actual_index == self.selected_achievement) and not self.tab_focus
                 is_unlocked = self.manager.is_unlocked(achievement["id"])
                 
-                # Check for unclaimed gift
+                # Check for unclaimed gift (respecting should_show_reward)
                 has_reward = self.manager.has_reward(achievement["id"])
                 reward_claimed = self.manager.is_reward_claimed(achievement["id"])
-                has_unclaimed_gift = is_unlocked and has_reward and not reward_claimed
+                should_show = self.manager.should_show_reward(achievement["id"]) if has_reward else False
+                has_unclaimed_gift = is_unlocked and has_reward and not reward_claimed and should_show
                 
                 # Draw achievement box
                 box_rect = pygame.Rect(10, y, self.width - 20, item_height - 3)
@@ -2141,6 +2195,8 @@ class AchievementsScreen:
         has_reward = self.manager.has_reward(ach["id"])
         reward_claimed = self.manager.is_reward_claimed(ach["id"])
         reward_info = self.manager.get_reward_info(ach["id"]) if has_reward else None
+        # Check if this reward should be shown (respects theme-already-unlocked logic)
+        should_show = self.manager.should_show_reward(ach["id"]) if has_reward else False
         
         # Overlay
         overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
@@ -2259,12 +2315,16 @@ class AchievementsScreen:
                 # Show reward preview (greyed out)
                 reward_surf = self.font_small.render(f"[REWARD] {reward_desc}", True, (100, 100, 100))
                 surf.blit(reward_surf, (popup_x + 15, reward_y))
-            elif reward_claimed:
-                # Already claimed
+            elif reward_claimed and not should_show:
+                # Already claimed and shouldn't show again (theme-only)
                 reward_surf = self.font_small.render(f"[CLAIMED] {reward_desc}", True, (100, 180, 100))
                 surf.blit(reward_surf, (popup_x + 15, reward_y))
+            elif not should_show:
+                # Theme already unlocked from another achievement
+                reward_surf = self.font_small.render(f"[ALREADY UNLOCKED] {reward_desc}", True, (100, 180, 100))
+                surf.blit(reward_surf, (popup_x + 15, reward_y))
             else:
-                # Show claim button - UNCLAIMED AND UNLOCKED
+                # Show claim button - UNCLAIMED AND UNLOCKED (or Pokemon re-claim)
                 reward_surf = self.font_small.render(reward_desc, True, (255, 200, 100))
                 surf.blit(reward_surf, (popup_x + 15, reward_y))
                 
@@ -2288,7 +2348,7 @@ class AchievementsScreen:
         
         # Close hint
         close_y = popup_y + popup_h - 20
-        if has_reward and is_unlocked and not reward_claimed:
+        if has_reward and is_unlocked and should_show:
             close_hint = self.font_small.render("A = Claim | B = Close", True, (100, 100, 100))
         else:
             close_hint = self.font_small.render("Press A or B to close", True, (100, 100, 100))
