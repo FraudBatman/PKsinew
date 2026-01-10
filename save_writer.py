@@ -147,10 +147,19 @@ def get_pc_pokemon_offset(save_data, block_offset, box_number, slot_number, game
     Returns:
         tuple: (section_offset, offset_within_section, pokemon_global_offset)
     """
+    import sys
+    
+    # Validate inputs
     if box_number < 1 or box_number > 14:
         raise ValueError(f"Invalid box number: {box_number} (must be 1-14)")
     if slot_number < 0 or slot_number >= BOX_SIZE:
         raise ValueError(f"Invalid slot number: {slot_number} (must be 0-29)")
+    
+    # Validate save_data
+    if save_data is None:
+        raise ValueError("save_data is None")
+    if len(save_data) < 0x20000:
+        raise ValueError(f"save_data too small: {len(save_data)} bytes (expected at least 131072)")
     
     # Calculate global offset within PC buffer
     # Box names take first 126 bytes (9 bytes * 14 boxes)
@@ -170,10 +179,29 @@ def get_pc_pokemon_offset(save_data, block_offset, box_number, slot_number, game
     section_index = 5 + (pokemon_offset_in_pc // bytes_per_section)
     offset_in_section = pokemon_offset_in_pc % bytes_per_section
     
+    # Validate section index is within expected range (5-13)
+    if section_index < 5 or section_index > 13:
+        raise ValueError(f"Calculated section {section_index} is out of PC range (5-13). Box={box_number}, Slot={slot_number}")
+    
     # Find the section
     section_offset = find_section_by_id(save_data, block_offset, section_index)
     if section_offset is None:
-        raise ValueError(f"Could not find section {section_index}")
+        # Debug: List all section IDs found in this block
+        found_sections = []
+        for i in range(14):
+            sec_off = block_offset + (i * SECTION_TOTAL_SIZE)
+            try:
+                sid = struct.unpack('<H', save_data[sec_off + 0xFF4:sec_off + 0xFF6])[0]
+                found_sections.append(sid)
+            except:
+                found_sections.append(-1)
+        
+        raise ValueError(
+            f"Could not find section {section_index} in save data.\n"
+            f"  Box={box_number}, Slot={slot_number}, BlockOffset=0x{block_offset:X}\n"
+            f"  Sections found: {found_sections}\n"
+            f"  Save size: {len(save_data)} bytes"
+        )
     
     global_offset = section_offset + offset_in_section
     

@@ -2404,11 +2404,22 @@ class PCBox:
             if not dest_save_path or not source_save_path:
                 raise ValueError(f"Missing save paths: dest={dest_save_path}, source={source_save_path}")
             
-            # 1. Write Pokemon to destination
+            # 1. Load save files
             dest_save_data = load_save_file(dest_save_path)
+            
+            # For different files, load source separately
+            if source_save_path != dest_save_path and source['type'] == 'box':
+                source_save_data = load_save_file(source_save_path)
+            else:
+                source_save_data = None
+            
+            # 2. Perform all modifications in memory BEFORE writing anything
+            # This ensures we don't end up with partial transfers
+            
+            # 2a. Write Pokemon to destination (in memory)
             write_pokemon_to_pc(dest_save_data, dest['box'], dest['slot'], raw_bytes, dest_game_type)
             
-            # 1b. Update Pokedex in destination game - mark this Pokemon as seen and caught
+            # 2b. Update Pokedex in destination game - mark this Pokemon as seen and caught
             # Note: Pokemon outside regional dex won't show until player unlocks National Dex
             try:
                 from save_writer import set_pokedex_flags_for_pokemon
@@ -2420,20 +2431,20 @@ class PCBox:
             except Exception as dex_err:
                 print(f"[PCBox] Pokedex update skipped: {dex_err}", file=sys.stderr, flush=True)
             
-            # 2. Handle source clearing
-            if source_save_path == dest_save_path:
-                # Same file
-                if source['type'] == 'box':
+            # 2c. Clear source slot (in memory)
+            if source['type'] == 'box':
+                if source_save_path == dest_save_path:
+                    # Same file - clear in dest_save_data
                     clear_pc_slot(dest_save_data, source['box'], source['slot'], dest_game_type)
-                write_save_file(dest_save_path, dest_save_data, create_backup_first=True)
-            else:
-                # Different files
-                write_save_file(dest_save_path, dest_save_data, create_backup_first=True)
-                
-                if source['type'] == 'box':
-                    source_save_data = load_save_file(source_save_path)
+                else:
+                    # Different files - clear in source_save_data
                     clear_pc_slot(source_save_data, source['box'], source['slot'], source_game_type)
-                    write_save_file(source_save_path, source_save_data, create_backup_first=True)
+            
+            # 3. All modifications successful - NOW write files
+            write_save_file(dest_save_path, dest_save_data, create_backup_first=True)
+            
+            if source_save_data is not None and source_save_path != dest_save_path:
+                write_save_file(source_save_path, source_save_data, create_backup_first=True)
             
             # Store undo action
             self.undo_action = {
