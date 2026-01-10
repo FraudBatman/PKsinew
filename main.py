@@ -1729,8 +1729,9 @@ class GameScreen:
             items.append("Resume Game")
             items.append("Stop Game")
         elif running_game:
-            # Different game is running - show that info
+            # Different game is running - show that info and Stop option
             items.append(f"Playing: {running_game}")
+            items.append("Stop Game")
         else:
             # No game running
             items.append("Launch Game")
