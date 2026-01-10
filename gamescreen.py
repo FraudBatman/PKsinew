@@ -3143,6 +3143,7 @@ if __name__ == "__main__":
             running = False
         
         # Render to virtual surface
+        screen = scaler.get_surface()
         game_screen.draw(screen)
         
         # Scale and display to window
