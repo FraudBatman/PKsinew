@@ -20,8 +20,9 @@ saves/
 generated/
 backups/
 lib/
-data/sprites/gen3/*
+data/sprites/gen3/normal/**
 !data/sprites/gen3/normal/egg.png
+data/sprites/gen3/shiny/*
 data/sprites/gen8
 data/sprites/items/master-ball.png
 data/sprites/items/poke-ball.png
