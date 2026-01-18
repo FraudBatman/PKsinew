@@ -68,7 +68,7 @@ python3 --version
 pip3 install pillow numpy pygame requests
 ```
 
-> **Note:** Pillow replaces PIL. NumPy and Pygame are required for Sinew.
+> **Note:** Pillow replaces PIL. NumPy and Pygame are required for Sinew. requests is used to build the database
 
 ---
 
