@@ -65,7 +65,7 @@ python3 --version
 ## Install Dependencies
 
 ```bash
-pip3 install pillow numpy pygame
+pip3 install pillow numpy pygame requests
 ```
 
 > **Note:** Pillow replaces PIL. NumPy and Pygame are required for Sinew.
