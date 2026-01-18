@@ -13,6 +13,7 @@ PKsinew supports **Windows, macOS, and Linux**, and works best with a **controll
 💡 **Devlog / Updates:** [Sinew Devlog](https://pksinew.hashnode.dev/pksinew-devlog-index-start-here)
 
 **Discord:** [Sinew Discord](https://discord.gg/t28tmQsyuq)
+
 ---
 
 ## Table of Contents
