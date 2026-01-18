@@ -7,6 +7,7 @@ It allows you to:
 - Handle **mass storage & transferring Pokémon between games**
 - Access **mythical rewards**
 - Explore **re-imagined abandoned features** from the original games
+- Export **save data to readable text file** for other projects
 
 PKsinew supports **Windows, macOS, and Linux**, and works best with a **controller** for seamless gameplay tracking.
 
