@@ -1105,11 +1105,53 @@ EVENT_ITEM_COMPATIBILITY = {
 }
 
 
-def get_item_encryption_key(save_data, section1_offset):
+def get_item_encryption_key(save_data, section1_offset, game_type=None):
     """
-    Get the item encryption key from Section 1.
+    Get the item encryption key.
+    
+    IMPORTANT: Different games store the key in different locations:
+    - Ruby/Sapphire: No encryption (returns 0)
+    - Emerald: Section 0 + 0x00AC (32-bit key, use lower 16 bits)
+    - FRLG: Section 0 + 0x0F20 (32-bit key, use lower 16 bits)
+    
+    For backwards compatibility, if game_type is not specified, we try to detect
+    based on the key value, but this may not be reliable.
     """
-    return struct.unpack('<H', save_data[section1_offset + 0x0294:section1_offset + 0x0296])[0]
+    # If game_type is explicitly RS, no encryption
+    if game_type in ('RS', 'R', 'S', 'Ruby', 'Sapphire'):
+        return 0
+    
+    # For FRLG and Emerald, we need Section 0, not Section 1
+    # Find Section 0
+    block_offset = get_active_block(save_data)
+    section0_offset = find_section_by_id(save_data, block_offset, 0)
+    
+    if section0_offset is None:
+        print("[ItemWriter] WARNING: Could not find Section 0 for encryption key")
+        return 0
+    
+    if game_type in ('FRLG', 'FR', 'LG', 'FireRed', 'LeafGreen'):
+        # FRLG: key at Section 0 + 0x0F20
+        key_offset = section0_offset + 0x0F20
+    elif game_type in ('E', 'Emerald'):
+        # Emerald: key at Section 0 + 0x00AC
+        key_offset = section0_offset + 0x00AC
+    else:
+        # Unknown game type - try FRLG offset first, then Emerald
+        # This is a fallback for backwards compatibility
+        key_frlg = struct.unpack('<I', save_data[section0_offset + 0x0F20:section0_offset + 0x0F24])[0]
+        key_e = struct.unpack('<I', save_data[section0_offset + 0x00AC:section0_offset + 0x00B0])[0]
+        
+        # Use whichever is non-zero, preferring FRLG
+        if key_frlg != 0:
+            return key_frlg & 0xFFFF
+        elif key_e != 0:
+            return key_e & 0xFFFF
+        return 0
+    
+    # Read 32-bit key and return lower 16 bits
+    key_32bit = struct.unpack('<I', save_data[key_offset:key_offset + 4])[0]
+    return key_32bit & 0xFFFF
 
 
 def find_item_in_pocket(save_data, section1_offset, game_type, pocket_name, item_id):
@@ -1173,12 +1215,14 @@ def add_item_to_pocket(save_data, game_type, pocket_name, item_id, quantity=1):
     Add an item to a specific pocket in the bag.
     If the item already exists, increases quantity (up to 999).
     
-    NOTE: Key items are NOT encrypted in Gen 3 games - they store raw quantities.
-    Only regular items, balls, TMs, and berries use encryption.
+    NOTE: Ruby/Sapphire do NOT encrypt key items - they store raw quantities.
+    Emerald and FRLG DO encrypt key items (and all other pockets).
     
     Returns: tuple: (success: bool, message: str)
     """
-    # Normalize game type
+    # Normalize game type but remember if it's specifically RS (not Emerald)
+    is_ruby_sapphire = game_type in ('RS', 'R', 'S', 'Ruby', 'Sapphire')
+    
     if game_type in ('E', 'RS', 'R', 'S', 'Emerald', 'Ruby', 'Sapphire'):
         normalized_type = 'RSE'
     elif game_type in ('FRLG', 'FR', 'LG', 'FireRed', 'LeafGreen'):
@@ -1192,14 +1236,14 @@ def add_item_to_pocket(save_data, game_type, pocket_name, item_id, quantity=1):
     if section1_offset is None:
         return (False, "Could not find Section 1")
     
-    # Key items are NOT encrypted - they store raw quantity values
-    # Only encrypt for non-key-item pockets
-    use_encryption = (pocket_name != 'key_items')
+    # Ruby/Sapphire do NOT encrypt key items - they store raw quantity values
+    # Emerald and FRLG DO encrypt key items
+    skip_encryption = (pocket_name == 'key_items' and is_ruby_sapphire)
     
-    if use_encryption:
-        item_key = get_item_encryption_key(save_data, section1_offset)
+    if skip_encryption:
+        item_key = 0  # No encryption for RS key items
     else:
-        item_key = 0  # No encryption for key items
+        item_key = get_item_encryption_key(save_data, section1_offset, game_type)
     
     pocket_config = ITEM_POCKET_OFFSETS.get(normalized_type, ITEM_POCKET_OFFSETS['RSE'])
     if pocket_name not in pocket_config:
@@ -1213,9 +1257,9 @@ def add_item_to_pocket(save_data, game_type, pocket_name, item_id, quantity=1):
     if existing_slot >= 0:
         slot_offset = pocket_offset + (existing_slot * 4)
         raw_qty = struct.unpack('<H', save_data[slot_offset + 2:slot_offset + 4])[0]
-        current_qty = raw_qty ^ item_key if use_encryption else raw_qty
+        current_qty = raw_qty if skip_encryption else (raw_qty ^ item_key)
         new_qty = min(999, current_qty + quantity)
-        new_qty_stored = new_qty ^ item_key if use_encryption else new_qty
+        new_qty_stored = new_qty if skip_encryption else (new_qty ^ item_key)
         struct.pack_into('<H', save_data, slot_offset + 2, new_qty_stored)
         print(f"[ItemWriter] Increased {item_id} quantity: {current_qty} -> {new_qty}")
     else:
@@ -1224,9 +1268,9 @@ def add_item_to_pocket(save_data, game_type, pocket_name, item_id, quantity=1):
             return (False, f"Pocket {pocket_name} is full!")
         slot_offset = pocket_offset + (empty_slot * 4)
         struct.pack_into('<H', save_data, slot_offset, item_id)
-        qty_stored = quantity ^ item_key if use_encryption else quantity
+        qty_stored = quantity if skip_encryption else (quantity ^ item_key)
         struct.pack_into('<H', save_data, slot_offset + 2, qty_stored)
-        print(f"[ItemWriter] Added item {item_id} x{quantity} to slot {empty_slot} (encrypted={use_encryption})")
+        print(f"[ItemWriter] Added item {item_id} x{quantity} to slot {empty_slot} (skip_encrypt={skip_encryption})")
     
     update_section_checksum(save_data, section1_offset)
     return (True, f"Added item {item_id} x{quantity}")

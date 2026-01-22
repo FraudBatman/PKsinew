@@ -216,9 +216,13 @@ def parse_bag(data, section1_offset, game_type='RS', section_offsets=None):
         pocket_offset = section1_offset + offsets[pocket_name]
         max_slots = offsets['item_slots'][pocket_name]
         
-        # Key items are NOT encrypted - they store raw quantity values
-        # Only use encryption for other pockets
-        pocket_key = 0 if pocket_name == 'key_items' else encryption_key
+        # Ruby/Sapphire (RS) do NOT encrypt key items - they store raw quantity values
+        # Emerald and FRLG DO encrypt key items
+        # Only skip encryption for key_items in RS (which has encryption_key = 0 anyway)
+        if pocket_name == 'key_items' and game_type == 'RS':
+            pocket_key = 0
+        else:
+            pocket_key = encryption_key
         
         pocket_items = parse_item_pocket(data, pocket_offset, max_slots, pocket_key)
         bag[pocket_name] = pocket_items
