@@ -423,7 +423,7 @@ def _generate_game_achievements(game: str, start_idx: int = 1) -> List[Dict]:
     if is_frlg:
         party_pc_achs = [
             ("First Pokemon", "party_size >= 1", 5, "Have at least 1 Pokemon in your party."),
-            ("Sevii Pokemon Ranger", "has_national_dex AND has_rainbow_pass", 100, "Unlock the National Dex and obtain the Rainbow Pass to explore all Sevii Islands!"),
+            ("Sevii Pokemon Ranger", "has_national_dex AND has_rainbow_pass", 100, "Get the National Dex and Rainbow Pass."),
             ("Full Party!", "party_size >= 6", 20, "Fill your party with 6 Pokemon!"),
             ("PC Storage: 10", "pc_pokemon >= 10", 10, "Store 10 Pokemon in your PC."),
             ("PC Storage: 30", "pc_pokemon >= 30", 20, "Store 30 Pokemon in your PC."),
