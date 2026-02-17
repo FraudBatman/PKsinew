@@ -57,9 +57,6 @@ cd PKsinew
 1. Download **Python 3.12** from the link above (3.12 is recommended for best compatibility)
 2. Run the installer
 3. **On the first screen, check the box that says "Add Python to PATH"** — this is critical. If you skip this, commands won't work
-
-   ![Add Python to PATH checkbox is at the bottom of the installer's first screen](https://docs.python.org/3/_images/win_installer.png)
-
 4. Click **Install Now** and let it finish
 5. Open **PowerShell** (search for it in the Start menu) and verify it worked:
 
