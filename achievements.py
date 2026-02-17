@@ -378,7 +378,11 @@ class AchievementManager:
         if game_name:
             games_to_check = [game_name]
         else:
-            games_to_check = GAMES + ["Sinew"]
+            # BUGFIX: Only check games that actually have tracking data loaded.
+            # Checking games with no tracking data causes false-positives for threshold
+            # achievements (e.g. "dex_count >= 0" would pass on an empty dict) and
+            # prevents phantom Emerald/FireRed achievements firing for Ruby-only players.
+            games_to_check = [g for g in (GAMES + ["Sinew"]) if g in self.tracking]
         
         newly_unlocked = []
         
@@ -1346,6 +1350,12 @@ class AchievementManager:
             
             sinew_tracking = self.tracking.get("Sinew", self.tracking.get("global", {}))
             
+            # BUGFIX: If we have no tracking data for this game at all, we cannot
+            # reliably validate its achievements (tracking is in-memory only and
+            # gets populated when a save is loaded). Keep all achievements for
+            # unloaded games rather than falsely revoking them.
+            game_has_tracking = game in self.tracking
+            
             for ach in achievements:
                 if not self.is_unlocked(ach["id"]):
                     continue
@@ -1359,8 +1369,19 @@ class AchievementManager:
                         parts = hint.split(">=")
                         key = parts[0].strip()
                         required = int(parts[1].strip().split()[0])
-                        current = game_tracking.get(key, 0)
-                        should_be_unlocked = current >= required
+                        
+                        if not game_has_tracking:
+                            # No tracking data for this game - cannot validate, keep the achievement
+                            should_be_unlocked = True
+                        elif 'money' in key.lower():
+                            # BUGFIX: Use high water mark for money so spending doesn't revoke achievements
+                            current = self.get_high_water_mark(key, game)
+                            tracking_val = game_tracking.get(key, 0)
+                            current = max(current, tracking_val)
+                            should_be_unlocked = current >= required
+                        else:
+                            current = game_tracking.get(key, 0)
+                            should_be_unlocked = current >= required
                     except:
                         should_be_unlocked = True  # Can't verify, keep it
                 
@@ -1371,6 +1392,8 @@ class AchievementManager:
                         # Special case: dev_mode and debug_test are permanent unlocks - never revoke them
                         if key in ("dev_mode_activated", "debug_test_activated"):
                             should_be_unlocked = True
+                        elif not game_has_tracking:
+                            should_be_unlocked = True  # Can't validate without tracking data
                         else:
                             should_be_unlocked = game_tracking.get(key, False)
                     except:
@@ -1382,39 +1405,56 @@ class AchievementManager:
                         species_id = int(hint.split("owns_species_")[1].split("_")[0].split()[0])
                         if game == "Sinew":
                             owned = sinew_tracking.get("combined_pokedex_set", set())
+                        elif not game_has_tracking:
+                            # No tracking data - can't validate, keep the achievement
+                            should_be_unlocked = True
+                            owned = None
                         else:
                             owned = game_tracking.get("owned_set", set())
-                        should_be_unlocked = species_id in owned
+                        if owned is not None:
+                            should_be_unlocked = species_id in owned
                     except:
                         should_be_unlocked = True
                 
                 elif "owns_species_380_or_381" in hint:
                     if game == "Sinew":
                         owned = sinew_tracking.get("combined_pokedex_set", set())
+                        should_be_unlocked = 380 in owned or 381 in owned
+                    elif not game_has_tracking:
+                        should_be_unlocked = True
                     else:
                         owned = game_tracking.get("owned_set", set())
-                    should_be_unlocked = 380 in owned or 381 in owned
+                        should_be_unlocked = 380 in owned or 381 in owned
                 
                 elif "owns_regi_trio" in hint:
                     if game == "Sinew":
                         owned = sinew_tracking.get("combined_pokedex_set", set())
+                        should_be_unlocked = 377 in owned and 378 in owned and 379 in owned
+                    elif not game_has_tracking:
+                        should_be_unlocked = True
                     else:
                         owned = game_tracking.get("owned_set", set())
-                    should_be_unlocked = 377 in owned and 378 in owned and 379 in owned
+                        should_be_unlocked = 377 in owned and 378 in owned and 379 in owned
                 
                 elif "owns_weather_trio" in hint:
                     if game == "Sinew":
                         owned = sinew_tracking.get("combined_pokedex_set", set())
+                        should_be_unlocked = 382 in owned and 383 in owned and 384 in owned
+                    elif not game_has_tracking:
+                        should_be_unlocked = True
                     else:
                         owned = game_tracking.get("owned_set", set())
-                    should_be_unlocked = 382 in owned and 383 in owned and 384 in owned
+                        should_be_unlocked = 382 in owned and 383 in owned and 384 in owned
                 
                 elif "owns_legendary_birds" in hint:
                     if game == "Sinew":
                         owned = sinew_tracking.get("combined_pokedex_set", set())
+                        should_be_unlocked = 144 in owned and 145 in owned and 146 in owned
+                    elif not game_has_tracking:
+                        should_be_unlocked = True
                     else:
                         owned = game_tracking.get("owned_set", set())
-                    should_be_unlocked = 144 in owned and 145 in owned and 146 in owned
+                        should_be_unlocked = 144 in owned and 145 in owned and 146 in owned
                 
                 else:
                     # Unknown hint type, keep the achievement
@@ -1511,15 +1551,21 @@ class AchievementManager:
         print(f"[Achievements]   Checked {checked_count} locked achievements, {already_unlocked} already unlocked")
         
         # Check Sinew achievements if sinew_data provided
+        # BUGFIX: Sinew achievements must only be checked using aggregate sinew_data,
+        # never using the per-game save_data. Passing Ruby's save_data to Sinew
+        # achievement checks caused Emerald/FireRed achievements to fire incorrectly
+        # because Sinew achievements share the same hint keys (dex_count, badges, etc.)
         if sinew_data:
             sinew_achievements = get_achievements_for("Sinew")
             # Build aggregate save data for Sinew checks
             all_saves = sinew_data.get("all_saves", [])
-            for ach in sinew_achievements:
-                if not self.is_unlocked(ach["id"]):
-                    if check_achievement_unlocked(ach, save_data, all_saves):
-                        if self.unlock(ach["id"], ach):  # Pass achievement data for notification
-                            newly_unlocked.append(ach["id"])
+            sinew_save_data = sinew_data.get("aggregate", {})  # Use aggregate, not per-game data
+            if sinew_save_data:  # Only check if we have proper aggregate data
+                for ach in sinew_achievements:
+                    if not self.is_unlocked(ach["id"]):
+                        if check_achievement_unlocked(ach, sinew_save_data, all_saves):
+                            if self.unlock(ach["id"], ach):
+                                newly_unlocked.append(ach["id"])
         
         return newly_unlocked
     
