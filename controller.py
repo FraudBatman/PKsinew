@@ -148,16 +148,16 @@ class ControllerManager:
         self._original_b = [1]
         self._swap_ab = False
         
-        # HAT (D-pad) mapping
+        # HAT (D-pad) mapping - cardinal directions only.
+        # Maps (hat_x, hat_y) tuples to direction strings.
+        # Diagonals are decomposed into cardinals by _get_dpad_from_hat().
+        # This dict is rebuilt by ButtonMapper._update_hat_map() when
+        # the user remaps d-pad directions.
         self.hat_map = {
             (0, 1): 'up',
             (0, -1): 'down',
             (-1, 0): 'left',
             (1, 0): 'right',
-            (1, 1): 'up',      # Diagonal up-right
-            (-1, 1): 'up',     # Diagonal up-left
-            (1, -1): 'down',   # Diagonal down-right
-            (-1, -1): 'down',  # Diagonal down-left
         }
         
         # D-pad as buttons mapping
@@ -587,6 +587,9 @@ class ControllerManager:
         The hat_map maps (hx, hy) tuples to direction strings.
         This is rebuilt by ButtonMapper when the user remaps d-pad directions,
         so it always reflects the current configuration.
+        
+        For diagonals we always decompose into cardinal components so both
+        axes register (e.g. pressing up-right sets both 'up' and 'right').
         """
         directions = {'up': False, 'down': False, 'left': False, 'right': False}
         
@@ -597,21 +600,19 @@ class ControllerManager:
             if self.active_controller.get_numhats() > 0:
                 hat = self.active_controller.get_hat(0)
                 
-                if hat != (0, 0):
-                    # Check exact match first (for diagonals)
-                    direction = self.hat_map.get(hat)
-                    if direction:
-                        directions[direction] = True
-                    else:
-                        # Check cardinal components separately
-                        if hat[0] != 0:
-                            d = self.hat_map.get((hat[0], 0))
-                            if d:
-                                directions[d] = True
-                        if hat[1] != 0:
-                            d = self.hat_map.get((0, hat[1]))
-                            if d:
-                                directions[d] = True
+                if hat == (0, 0):
+                    return directions
+                
+                # Always check cardinal components independently so diagonals
+                # register both axes (e.g. up-right → up AND right).
+                if hat[0] != 0:
+                    d = self.hat_map.get((hat[0], 0))
+                    if d:
+                        directions[d] = True
+                if hat[1] != 0:
+                    d = self.hat_map.get((0, hat[1]))
+                    if d:
+                        directions[d] = True
         except pygame.error:
             pass
         
@@ -829,11 +830,17 @@ class ControllerManager:
                 if button_name:
                     events.append(ControllerEvent('button', button=button_name))
         
-        # Handle HAT (D-pad) press
+        # Handle HAT (D-pad) press - decompose diagonals into cardinals
         elif event.type == pygame.JOYHATMOTION:
-            direction = self.hat_map.get(event.value)
-            if direction:
-                events.append(ControllerEvent('dpad', direction=direction))
+            hx, hy = event.value
+            if hx != 0:
+                direction = self.hat_map.get((hx, 0))
+                if direction:
+                    events.append(ControllerEvent('dpad', direction=direction))
+            if hy != 0:
+                direction = self.hat_map.get((0, hy))
+                if direction:
+                    events.append(ControllerEvent('dpad', direction=direction))
         
         # Handle axis motion (for D-pad simulation)
         elif event.type == pygame.JOYAXISMOTION:

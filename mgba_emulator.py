@@ -458,7 +458,12 @@ class MgbaEmulator:
         self._load_core()
     
     def _load_controller_config(self):
-        """Load saved controller configuration from sinew_settings.json."""
+        """Load saved controller configuration from sinew_settings.json.
+        
+        Loads both face button mappings and d-pad bindings (hat remaps,
+        button-based dpad, axis-based dpad) so the emulator respects the
+        same config as the Sinew UI.
+        """
         import json
         
         # Get absolute path for settings file
@@ -469,35 +474,99 @@ class MgbaEmulator:
         else:
             config_file = "sinew_settings.json"
         
+        # D-pad config: hat direction -> (hat_component_index, expected_value)
+        # Default: standard hat convention
+        self._dpad_hat_map = {
+            RETRO_DEVICE_ID_JOYPAD_UP:    ('y', 1),
+            RETRO_DEVICE_ID_JOYPAD_DOWN:  ('y', -1),
+            RETRO_DEVICE_ID_JOYPAD_LEFT:  ('x', -1),
+            RETRO_DEVICE_ID_JOYPAD_RIGHT: ('x', 1),
+        }
+        # D-pad as buttons: retro_id -> controller button index (or None)
+        self._dpad_button_map = {
+            RETRO_DEVICE_ID_JOYPAD_UP:    None,
+            RETRO_DEVICE_ID_JOYPAD_DOWN:  None,
+            RETRO_DEVICE_ID_JOYPAD_LEFT:  None,
+            RETRO_DEVICE_ID_JOYPAD_RIGHT: None,
+        }
+        # D-pad axis pairs to check: list of (x_axis, y_axis)
+        self._dpad_axis_pairs = [(0, 1)]
+        
         try:
-            if os.path.exists(config_file):
-                with open(config_file, 'r') as f:
-                    settings_data = json.load(f)
+            if not os.path.exists(config_file):
+                return
+            
+            with open(config_file, 'r') as f:
+                settings_data = json.load(f)
+            
+            # Load face button mappings from controller_mapping
+            if 'controller_mapping' in settings_data:
+                saved_map = settings_data['controller_mapping']
                 
-                if 'controller_mapping' in settings_data:
-                    saved_map = settings_data['controller_mapping']
+                # Map our button names to libretro IDs
+                name_to_retro = {
+                    'A': RETRO_DEVICE_ID_JOYPAD_A,
+                    'B': RETRO_DEVICE_ID_JOYPAD_B,
+                    'L': RETRO_DEVICE_ID_JOYPAD_L,
+                    'R': RETRO_DEVICE_ID_JOYPAD_R,
+                    'START': RETRO_DEVICE_ID_JOYPAD_START,
+                    'SELECT': RETRO_DEVICE_ID_JOYPAD_SELECT,
+                }
+                
+                for btn_name, retro_id in name_to_retro.items():
+                    if btn_name in saved_map:
+                        val = saved_map[btn_name]
+                        # Get the first integer value from the list
+                        if isinstance(val, list) and len(val) > 0:
+                            if isinstance(val[0], int):
+                                self._gamepad_map[retro_id] = val[0]
+                        elif isinstance(val, int):
+                            self._gamepad_map[retro_id] = val
+                
+                # Load d-pad bindings (structured dict format from ButtonMapper)
+                dpad_name_to_retro = {
+                    'DPAD_UP':    RETRO_DEVICE_ID_JOYPAD_UP,
+                    'DPAD_DOWN':  RETRO_DEVICE_ID_JOYPAD_DOWN,
+                    'DPAD_LEFT':  RETRO_DEVICE_ID_JOYPAD_LEFT,
+                    'DPAD_RIGHT': RETRO_DEVICE_ID_JOYPAD_RIGHT,
+                }
+                
+                has_dpad_bindings = False
+                for dpad_key, retro_id in dpad_name_to_retro.items():
+                    binding = saved_map.get(dpad_key)
+                    if not isinstance(binding, dict):
+                        continue
                     
-                    # Map our button names to libretro IDs
-                    name_to_retro = {
-                        'A': RETRO_DEVICE_ID_JOYPAD_A,
-                        'B': RETRO_DEVICE_ID_JOYPAD_B,
-                        'L': RETRO_DEVICE_ID_JOYPAD_L,
-                        'R': RETRO_DEVICE_ID_JOYPAD_R,
-                        'START': RETRO_DEVICE_ID_JOYPAD_START,
-                        'SELECT': RETRO_DEVICE_ID_JOYPAD_SELECT,
-                    }
+                    has_dpad_bindings = True
+                    source = binding.get('source', '')
                     
-                    for btn_name, retro_id in name_to_retro.items():
-                        if btn_name in saved_map:
-                            val = saved_map[btn_name]
-                            # Get the first integer value from the list
-                            if isinstance(val, list) and len(val) > 0:
-                                if isinstance(val[0], int):
-                                    self._gamepad_map[retro_id] = val[0]
-                            elif isinstance(val, int):
-                                self._gamepad_map[retro_id] = val
+                    if source == 'hat':
+                        axis = binding.get('axis', 'y')
+                        value = binding.get('value', 0)
+                        self._dpad_hat_map[retro_id] = (axis, value)
                     
-                    print(f"[MgbaEmulator] Loaded controller mappings: A={self._gamepad_map.get(RETRO_DEVICE_ID_JOYPAD_A)}, B={self._gamepad_map.get(RETRO_DEVICE_ID_JOYPAD_B)}")
+                    elif source == 'button':
+                        btn_idx = binding.get('button')
+                        if btn_idx is not None:
+                            self._dpad_button_map[retro_id] = btn_idx
+                            # Disable hat for this direction since it's button-based
+                            self._dpad_hat_map[retro_id] = None
+                    
+                    elif source == 'axis':
+                        axis_idx = binding.get('axis_index', 0)
+                        direction = binding.get('direction', 0)
+                        # Store as special axis binding
+                        # We'll check this in _handle_input
+                        if not hasattr(self, '_dpad_axis_bindings'):
+                            self._dpad_axis_bindings = {}
+                        self._dpad_axis_bindings[retro_id] = (axis_idx, direction)
+                        # Disable hat for this direction
+                        self._dpad_hat_map[retro_id] = None
+                
+                if has_dpad_bindings:
+                    print(f"[MgbaEmulator] Loaded d-pad bindings: hat={self._dpad_hat_map}")
+                
+                print(f"[MgbaEmulator] Loaded controller mappings: A={self._gamepad_map.get(RETRO_DEVICE_ID_JOYPAD_A)}, B={self._gamepad_map.get(RETRO_DEVICE_ID_JOYPAD_B)}")
         except Exception as e:
             print(f"[MgbaEmulator] Error loading controller config: {e}")
     
@@ -781,19 +850,37 @@ class MgbaEmulator:
         # Check gamepad
         if self._joystick:
             try:
-                # D-pad via hat
+                # D-pad via hat (using configured hat map)
                 if self._joystick.get_numhats() > 0:
                     hx, hy = self._joystick.get_hat(0)
-                    if button_id == RETRO_DEVICE_ID_JOYPAD_UP and hy == 1:
-                        return 1
-                    if button_id == RETRO_DEVICE_ID_JOYPAD_DOWN and hy == -1:
-                        return 1
-                    if button_id == RETRO_DEVICE_ID_JOYPAD_LEFT and hx == -1:
-                        return 1
-                    if button_id == RETRO_DEVICE_ID_JOYPAD_RIGHT and hx == 1:
+                    hat_config = self._dpad_hat_map.get(button_id)
+                    if hat_config is not None:
+                        axis, expected_value = hat_config
+                        if axis == 'x' and hx == expected_value:
+                            return 1
+                        elif axis == 'y' and hy == expected_value:
+                            return 1
+                
+                # D-pad via buttons (for controllers with button-based dpads)
+                dpad_btn = self._dpad_button_map.get(button_id)
+                if dpad_btn is not None:
+                    num_buttons = self._joystick.get_numbuttons()
+                    if dpad_btn < num_buttons and self._joystick.get_button(dpad_btn):
                         return 1
                 
-                # Buttons - use configured mapping
+                # D-pad via specific axis bindings (from remapping)
+                axis_bindings = getattr(self, '_dpad_axis_bindings', {})
+                axis_binding = axis_bindings.get(button_id)
+                if axis_binding is not None:
+                    axis_idx, expected_dir = axis_binding
+                    if axis_idx < self._joystick.get_numaxes():
+                        val = self._joystick.get_axis(axis_idx)
+                        if expected_dir > 0 and val > 0.5:
+                            return 1
+                        elif expected_dir < 0 and val < -0.5:
+                            return 1
+                
+                # Face/shoulder buttons - use configured mapping
                 num_buttons = self._joystick.get_numbuttons()
                 
                 if button_id in self._gamepad_map:
@@ -801,7 +888,7 @@ class MgbaEmulator:
                     if btn < num_buttons and self._joystick.get_button(btn):
                         return 1
                 
-                # Analog stick
+                # Analog stick (always axes 0,1 for left stick navigation)
                 if self._joystick.get_numaxes() >= 2:
                     lx = self._joystick.get_axis(0)
                     ly = self._joystick.get_axis(1)

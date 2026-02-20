@@ -503,27 +503,6 @@ class ButtonMapper:
                 # Keep the default mapping for this direction
                 hat_entries[hat_tuple] = direction
         
-        # Add diagonal entries (priority to vertical for GBA-style navigation)
-        up_y = down_y = left_x = right_x = None
-        for ht, d in hat_entries.items():
-            if d == 'up':
-                up_y = ht[1]
-            elif d == 'down':
-                down_y = ht[1]
-            elif d == 'left':
-                left_x = ht[0]
-            elif d == 'right':
-                right_x = ht[0]
-        
-        if right_x is not None and up_y is not None:
-            hat_entries[(right_x, up_y)] = 'up'
-        if left_x is not None and up_y is not None:
-            hat_entries[(left_x, up_y)] = 'up'
-        if right_x is not None and down_y is not None:
-            hat_entries[(right_x, down_y)] = 'down'
-        if left_x is not None and down_y is not None:
-            hat_entries[(left_x, down_y)] = 'down'
-        
         self.controller.hat_map = hat_entries
         print(f"[ButtonMapper] Updated hat_map: {hat_entries}")
     
@@ -914,10 +893,10 @@ class ButtonMapper:
         self._draw_menu(surf)
         
         # Draw controller hints
-        hints = "D-Pad: Navigate   A: Bind   B: Back"
+        hints = "D-Pad/Arrows: Navigate  A/Enter: Bind  B/Esc: Back"
         if self.listening:
             if getattr(self, 'listening_is_dpad', False):
-                hints = "Move hat/stick or press btn   ESC: Cancel"
+                hints = "Move hat/stick or press btn  ESC: Cancel"
             else:
                 hints = "Press a button to bind   ESC: Cancel"
         hint_surf = self.font_small.render(hints, True, (100, 100, 100))
