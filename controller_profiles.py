@@ -326,6 +326,58 @@ PROFILES = [
             "START": [7],
         },
     },
+    # ----- USB Retro Controllers (DragonRise chipset) -----
+    # DragonRise Inc. "Generic USB Joystick" — the chip inside most cheap
+    # USB N64, SNES, Genesis, and other retro-style controller adapters.
+    # Vendor 0x0079, Product 0x0006.  12 buttons, 4 axes, 1 hat.
+    # Button layout confirmed from user-submitted mapping (N64-style pad).
+    {
+        "id": "dragonrise_usb",
+        "description": "USB Retro Pad (DragonRise)",
+        "guids": [
+            "0300f020790000000600000000000000",  # Windows
+            "030000007900000006000000",          # Linux (shorter GUID format)
+        ],
+        "name_patterns": [
+            "generic usb joystick",
+            "dragonrise",
+        ],
+        "mapping": {
+            "A": [5],
+            "B": [4],
+            "X": [2],
+            "Y": [3],
+            "L": [6],
+            "R": [7],
+            "SELECT": [0],
+            "START": [9],
+        },
+    },
+    # USB Gamepad — vendor 0x081f, product 0xe401.
+    # Another common cheap USB gamepad chipset.  10 buttons, 2 axes, 0 hats.
+    # D-pad is reported as axes 0 (X) and 1 (Y), no hat.
+    {
+        "id": "usb_gamepad_081f",
+        "description": "USB Gamepad (081F)",
+        "guids": [
+            "03004d2a1f08000001e4000000000000",  # Windows
+            "0300000001f000000100e400",            # Linux (shorter)
+        ],
+        "name_patterns": [
+            "usb gamepad",
+        ],
+        "mapping": {
+            "A": [1],
+            "B": [2],
+            "X": [0],
+            "Y": [3],
+            "L": [4],
+            "R": [5],
+            "SELECT": [8],
+            "START": [9],
+            "_dpad_axes": [(0, 1)],
+        },
+    },
     # ----- Generic / Linux virtual gamepads -----
     {
         "id": "generic_gamepad",
