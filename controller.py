@@ -783,6 +783,38 @@ class ControllerManager:
             
             self.button_states[button_name] = is_pressed
     
+    def get_nav_keys(self):
+        """Return the set of pygame key constants currently handled by
+        the keyboard navigation map.  Useful for filtering KEYDOWN events
+        so they aren't processed twice (once via controller polling and
+        once via raw event handling)."""
+        keys = set()
+        for key_list in self.kb_nav_map.values():
+            for k in key_list:
+                if isinstance(k, int):
+                    keys.add(k)
+        return keys
+    
+    def filter_kb_events(self, events):
+        """Return a copy of *events* with KEYDOWN / KEYUP events removed
+        for any key that the controller's keyboard-nav map already handles.
+
+        Call this from the main loop **after** controller.update() so that
+        screens which have both handle_controller() and handle_event()
+        don't double-process the same keypress.
+
+        Non-keyboard events and keyboard events for unmapped keys (F11,
+        Alt, etc.) pass through unchanged.
+        """
+        nav_keys = self.get_nav_keys()
+        filtered = []
+        for event in events:
+            if event.type in (pygame.KEYDOWN, pygame.KEYUP):
+                if getattr(event, 'key', None) in nav_keys:
+                    continue  # drop — controller already handled it
+            filtered.append(event)
+        return filtered
+    
     def process_event(self, event):
         """
         Process a pygame event and return controller events if applicable

@@ -6,6 +6,7 @@ Tabbed settings modal with controller support
 import pygame
 import json
 import os
+import time
 import webbrowser
 import ui_colors  # Import module for dynamic theme colors
 from controller import get_controller, NavigableList
@@ -763,7 +764,7 @@ class KeyboardMapper:
         self.listening = True
         self.listen_action = action
         self.listen_tab = self.active_tab
-        self.listen_start = time.time() if 'time' in dir(__builtins__) else pygame.time.get_ticks() / 1000.0
+        self.listen_start = time.time()
         self.listen_keys = []
     
     def _stop_listening(self, save=True):
@@ -825,14 +826,16 @@ class KeyboardMapper:
     
     def handle_controller(self, ctrl):
         """Handle controller input"""
-        import time as _time
-        
         if self.listening:
-            elapsed = _time.time() - self.listen_start
+            elapsed = time.time() - self.listen_start
             if elapsed >= self.LISTEN_TIMEOUT:
-                self._stop_listening(save=False)
-                self._status = "Timed out"
-                self._status_time = pygame.time.get_ticks()
+                if self.listen_keys:
+                    # Lock in whatever was pressed
+                    self._stop_listening(save=True)
+                else:
+                    self._stop_listening(save=False)
+                    self._status = "Timed out"
+                    self._status_time = pygame.time.get_ticks()
             return True
         
         actions = self._current_actions()
@@ -868,15 +871,18 @@ class KeyboardMapper:
         return True
     
     def update(self, events):
-        import time as _time
         self.handle_events(events)
         # Auto-stop listening on timeout
         if self.listening:
-            elapsed = _time.time() - self.listen_start
+            elapsed = time.time() - self.listen_start
             if elapsed >= self.LISTEN_TIMEOUT:
-                self._stop_listening(save=False)
-                self._status = "Timed out"
-                self._status_time = pygame.time.get_ticks()
+                if self.listen_keys:
+                    # Lock in whatever was pressed
+                    self._stop_listening(save=True)
+                else:
+                    self._stop_listening(save=False)
+                    self._status = "Timed out"
+                    self._status_time = pygame.time.get_ticks()
         return self.visible
     
     def draw(self, surf):
@@ -955,8 +961,7 @@ class KeyboardMapper:
             
             # Keys display
             if is_listening:
-                import time as _t
-                elapsed = _t.time() - self.listen_start
+                elapsed = time.time() - self.listen_start
                 remaining = max(0, self.LISTEN_TIMEOUT - elapsed)
                 recorded = self._keys_display(self.listen_keys) if self.listen_keys else "..."
                 ks_text = f"Press key(s)... {recorded}  [{remaining:.1f}s]"
@@ -1005,6 +1010,7 @@ class MainSetup:
         
         # Sub-screen state
         self.sub_screen = None  # Can hold ButtonMapper, etc.
+        self._sub_screen_open_tick = 0  # Frame when sub_screen was opened
         
         # Cache message state
         self._cache_message = None
@@ -1234,19 +1240,19 @@ class MainSetup:
         if name == "Themes":
             if THEMES_SCREEN_AVAILABLE:
                 print("[Settings] Opening themes screen...")
-                self.sub_screen = ThemesScreen(
+                self._set_sub_screen(ThemesScreen(
                     self.width, self.height,
                     close_callback=self._close_sub_screen
-                )
+                ))
             else:
                 print("[Settings] Themes screen not available")
         elif name == "Clear Cache":
-            self.sub_screen = ConfirmationPopup(
+            self._set_sub_screen(ConfirmationPopup(
                 self.width, self.height,
                 "Clear all cache data?",
                 on_confirm=self._do_clear_cache,
                 on_cancel=self._close_sub_screen
-            )
+            ))
         elif name == "Build/Rebuild Pokemon DB":
             print("[Settings] Opening Pokemon DB builder...")
             if self.db_builder_callback:
@@ -1256,29 +1262,29 @@ class MainSetup:
         elif name == "Map Buttons":
             if BUTTON_MAPPER_AVAILABLE:
                 print("[Settings] Opening button mapper...")
-                self.sub_screen = ButtonMapper(
+                self._set_sub_screen(ButtonMapper(
                     self.width, self.height,
                     close_callback=self._close_sub_screen,
                     controller=self.controller
-                )
+                ))
             else:
                 print("[Settings] Button mapper not available")
         elif name == "Pause/Menu Combo":
             print("[Settings] Opening pause combo selector...")
-            self.sub_screen = PauseComboSelector(
+            self._set_sub_screen(PauseComboSelector(
                 self.width, self.height,
                 close_callback=self._close_sub_screen,
                 controller=self.controller,
                 reload_combo_callback=self.reload_combo_callback
-            )
+            ))
         elif name == "Map Keyboard Keys":
             print("[Settings] Opening keyboard mapper...")
-            self.sub_screen = KeyboardMapper(
+            self._set_sub_screen(KeyboardMapper(
                 self.width, self.height,
                 close_callback=self._close_sub_screen,
                 controller=self.controller,
                 reload_kb_callback=self._on_keyboard_saved
-            )
+            ))
         elif name == "Reset Keyboard Defaults":
             km = KeyboardMapper(self.width, self.height)
             km._reset_to_defaults()
@@ -1294,24 +1300,24 @@ class MainSetup:
                 print("[Settings] Controller reset to defaults")
         elif name == "About/Legal":
             print("[Settings] Opening About/Legal screen...")
-            self.sub_screen = AboutLegalScreen(
+            self._set_sub_screen(AboutLegalScreen(
                 self.width, self.height,
                 close_callback=self._close_sub_screen
-            )
+            ))
         elif name == "Changelog":
             print("[Settings] Opening Changelog screen...")
-            self.sub_screen = ChangelogScreen(
+            self._set_sub_screen(ChangelogScreen(
                 self.width, self.height,
                 close_callback=self._close_sub_screen
-            )
+            ))
         # Dev tab handlers
         elif name == "Reset ALL Achievements":
-            self.sub_screen = ConfirmationPopup(
+            self._set_sub_screen(ConfirmationPopup(
                 self.width, self.height,
                 "Reset ALL achievements?",
                 on_confirm=self._do_reset_all_achievements,
                 on_cancel=self._close_sub_screen
-            )
+            ))
         elif name == "Reset Game Achievements...":
             self._open_game_achievement_selector()
         elif name == "Export Achievement Data":
@@ -1323,6 +1329,17 @@ class MainSetup:
         """Close any open sub-screen"""
         self.sub_screen = None
     
+    def _set_sub_screen(self, screen):
+        """Open a sub-screen with input guard to prevent bleed-through.
+        
+        Records the current tick so that handle_events and handle_controller
+        skip delegating to the sub_screen on the same frame it was opened.
+        This prevents the key/button that activated the option from also
+        being processed by the newly opened sub_screen.
+        """
+        self.sub_screen = screen
+        self._sub_screen_open_tick = pygame.time.get_ticks()
+    
     def _status_msg(self, msg):
         """Show a temporary status message"""
         self._cache_message = msg
@@ -1330,7 +1347,9 @@ class MainSetup:
     
     def _on_keyboard_saved(self):
         """Called after keyboard bindings are saved; reloads controller and emulator maps."""
-        self._close_sub_screen()
+        # Do NOT close the sub_screen here — the user may still be binding keys.
+        # The mapper will close itself via on_close -> close_callback.
+        
         # Reload controller keyboard nav map
         try:
             ctrl = get_controller()
@@ -1349,7 +1368,6 @@ class MainSetup:
                     break
         except Exception:
             pass
-        self._status_msg("Keyboard bindings saved")
     
     def _do_clear_cache(self):
         """Called after confirmation to clear cache"""
@@ -1719,13 +1737,16 @@ class MainSetup:
         surf.blit(hint_surf, (modal_x + 10, modal_y + modal_h - 18))
 
     def handle_controller(self, ctrl):
-        # Delegate to sub-screen if active
+        # Delegate to sub-screen if active (but not on the frame it was just opened,
+        # to prevent the activating button press from bleeding through)
         if self.sub_screen:
-            result = self.sub_screen.handle_controller(ctrl)
-            # Check if sub_screen closed (either via callback or visible flag)
-            if self.sub_screen and not self.sub_screen.visible:
-                self.sub_screen = None
-            return result
+            if pygame.time.get_ticks() != self._sub_screen_open_tick:
+                result = self.sub_screen.handle_controller(ctrl)
+                # Check if sub_screen closed (either via callback or visible flag)
+                if self.sub_screen and not self.sub_screen.visible:
+                    self.sub_screen = None
+                return result
+            return True
         
         # Handle achievement reset modal if open
         if self._ach_reset_modal:
@@ -1909,12 +1930,14 @@ class MainSetup:
     # Keyboard / Pygame events
     # -------------------
     def handle_events(self, events):
-        # Delegate to sub-screen if active
+        # Delegate to sub-screen if active (but not on the frame it was just opened,
+        # to prevent the activating keypress from bleeding through)
         if self.sub_screen:
-            self.sub_screen.update(events)
-            # Check if sub_screen closed (either via callback or visible flag)
-            if self.sub_screen and not self.sub_screen.visible:
-                self.sub_screen = None
+            if pygame.time.get_ticks() != self._sub_screen_open_tick:
+                self.sub_screen.update(events)
+                # Check if sub_screen closed (either via callback or visible flag)
+                if self.sub_screen and not self.sub_screen.visible:
+                    self.sub_screen = None
             return
         
         for event in events:

@@ -44,195 +44,10 @@ import os
 # ============================================================================
 
 PROFILES = [
-    # ----- Xbox Family -----
-    {
-        "id": "xbox",
-        "description": "Xbox Controller",
-        "name_patterns": [
-            "xbox", "x-box", "xinput", "microsoft gamepad",
-            "microsoft controller", "xbox one", "xbox 360",
-            "xbox series", "xbox elite", "xbox wireless",
-        ],
-        "mapping": {
-            "A": [0],
-            "B": [1],
-            "X": [2],
-            "Y": [3],
-            "L": [4],
-            "R": [5],
-            "SELECT": [6],
-            "START": [7],
-        },
-    },
-    # ----- PlayStation Family -----
-    # DualShock 3 / SIXAXIS
-    # SDL GameControllerDB: a:b1, b:b2, x:b0, y:b3, leftshoulder:b4,
-    # rightshoulder:b5, back:b8, start:b9
-    # Note: Some Linux drivers report DS3 d-pad as buttons 4-7 (older) or
-    # use hat. The auto-detect handles this, but we note the common
-    # button-dpad variant here for reference.
-    {
-        "id": "ds3",
-        "description": "DualShock 3 / SIXAXIS",
-        "name_patterns": [
-            "playstation 3", "ps3", "sixaxis", "dualshock 3",
-            "sony playstation(r)3",
-        ],
-        "mapping": {
-            "A": [1],      # Cross (b1)
-            "B": [2],      # Circle (b2)
-            "X": [0],      # Square (b0)
-            "Y": [3],      # Triangle (b3)
-            "L": [4],      # L1 (b4)
-            "R": [5],      # R1 (b5)
-            "SELECT": [8], # Select (b8)
-            "START": [9],  # Start (b9)
-        },
-    },
-    # DS3 variant where d-pad is reported as buttons (some USB adapters)
-    {
-        "id": "ds3_dpad_buttons",
-        "description": "DualShock 3 (button d-pad)",
-        "name_patterns": [
-            "sony playstation(r)3 controller",
-        ],
-        "mapping": {
-            "A": [14],     # Cross
-            "B": [13],     # Circle
-            "X": [15],     # Square
-            "Y": [12],     # Triangle
-            "L": [10],     # L1
-            "R": [11],     # R1
-            "SELECT": [0], # Select
-            "START": [3],  # Start
-            "_dpad_buttons": {
-                "up": [4],
-                "down": [6],
-                "left": [7],
-                "right": [5],
-            },
-        },
-    },
-    # DualShock 4
-    # SDL GameControllerDB: a:b1, b:b2, x:b0, y:b3, leftshoulder:b4,
-    # rightshoulder:b5, back:b8, start:b9
-    {
-        "id": "ds4",
-        "description": "DualShock 4",
-        "name_patterns": [
-            "dualshock 4", "ps4", "playstation 4",
-            "wireless controller",  # Generic PS4 name on many systems
-            "sony interactive entertainment wireless controller",
-        ],
-        "mapping": {
-            "A": [1],      # Cross (b1)
-            "B": [2],      # Circle (b2)
-            "X": [0],      # Square (b0)
-            "Y": [3],      # Triangle (b3)
-            "L": [4],      # L1 (b4)
-            "R": [5],      # R1 (b5)
-            "SELECT": [8], # Share (b8)
-            "START": [9],  # Options (b9)
-        },
-    },
-    # DualSense (PS5)
-    # SDL GameControllerDB: a:b1, b:b2, x:b0, y:b3, leftshoulder:b4,
-    # rightshoulder:b5, back:b8, start:b9 (same layout as DS4)
-    {
-        "id": "dualsense",
-        "description": "DualSense (PS5)",
-        "name_patterns": [
-            "dualsense", "ps5", "playstation 5",
-        ],
-        "mapping": {
-            "A": [1],      # Cross (b1)
-            "B": [2],      # Circle (b2)
-            "X": [0],      # Square (b0)
-            "Y": [3],      # Triangle (b3)
-            "L": [4],      # L1 (b4)
-            "R": [5],      # R1 (b5)
-            "SELECT": [8], # Create (b8)
-            "START": [9],  # Options (b9)
-        },
-    },
-    # ----- Nintendo Switch -----
-    # SDL GameControllerDB positional (not label) mapping:
-    # a:b0, b:b1, x:b2, y:b3, leftshoulder:b4, rightshoulder:b5, back:b8, start:b9
-    # Note: SDL has two modes - label-based (a:b1,b:b0) and positional (a:b0,b:b1).
-    # We use positional since Sinew treats A=confirm (bottom) and B=back (right).
-    {
-        "id": "switch_pro",
-        "description": "Switch Pro Controller",
-        "name_patterns": [
-            "switch pro", "nintendo switch pro", "pro controller",
-        ],
-        "mapping": {
-            "A": [0],      # A position (bottom face button)
-            "B": [1],      # B position (right face button)
-            "X": [2],      # X
-            "Y": [3],      # Y
-            "L": [4],      # L (b4)
-            "R": [5],      # R (b5)
-            "SELECT": [8], # Minus (b8)
-            "START": [9],  # Plus (b9)
-        },
-    },
-    # Joy-Cons (combined or individual in grip)
-    {
-        "id": "joycon",
-        "description": "Nintendo Joy-Con",
-        "name_patterns": [
-            "joy-con", "joycon",
-        ],
-        "mapping": {
-            "A": [0],
-            "B": [1],
-            "X": [2],
-            "Y": [3],
-            "L": [4],
-            "R": [5],
-            "SELECT": [8],
-            "START": [9],
-        },
-    },
-    # ----- 8BitDo Family -----
-    {
-        "id": "8bitdo_sn30_pro",
-        "description": "8BitDo SN30 Pro / Pro 2",
-        "name_patterns": [
-            "8bitdo sn30 pro", "8bitdo pro 2", "sn30 pro",
-            "8bitdo sf30 pro",
-        ],
-        "mapping": {
-            # In XInput mode (most common): same as Xbox
-            "A": [0],
-            "B": [1],
-            "X": [2],
-            "Y": [3],
-            "L": [4],
-            "R": [5],
-            "SELECT": [6],
-            "START": [7],
-        },
-    },
-    {
-        "id": "8bitdo_generic",
-        "description": "8BitDo Controller",
-        "name_patterns": [
-            "8bitdo", "8bit",
-        ],
-        "mapping": {
-            "A": [0],
-            "B": [1],
-            "X": [2],
-            "Y": [3],
-            "L": [4],
-            "R": [5],
-            "SELECT": [6],
-            "START": [7],
-        },
-    },
     # ----- Retro Handhelds (ROCKNIX/ArkOS/etc.) -----
+    # These embedded Linux devices are NOT in GameControllerDB since they're
+    # not USB/Bluetooth gamepads — they use built-in kernel input devices.
+    #
     # Powkiddy X55
     {
         "id": "powkiddy_x55",
@@ -270,7 +85,7 @@ PROFILES = [
             "START": [7],
         },
     },
-    # Anbernic handhelds
+    # Anbernic handhelds (older models not in GameControllerDB)
     {
         "id": "anbernic",
         "description": "Anbernic Handheld",
@@ -326,7 +141,7 @@ PROFILES = [
             "START": [7],
         },
     },
-    # ----- USB Retro Controllers (DragonRise chipset) -----
+    # ----- USB Retro Controllers (user-submitted, NOT in GameControllerDB) -----
     # DragonRise Inc. "Generic USB Joystick" — the chip inside most cheap
     # USB N64, SNES, Genesis, and other retro-style controller adapters.
     # Vendor 0x0079, Product 0x0006.  12 buttons, 4 axes, 1 hat.
@@ -378,7 +193,9 @@ PROFILES = [
             "_dpad_axes": [(0, 1)],
         },
     },
-    # ----- Generic / Linux virtual gamepads -----
+    # ----- Generic / catch-all -----
+    # Matches controllers not in GameControllerDB and not matching above.
+    # Uses standard Xbox-style layout as the most common convention.
     {
         "id": "generic_gamepad",
         "description": "Generic Gamepad",
@@ -387,25 +204,6 @@ PROFILES = [
             "generic", "twin usb", "controller (", "hid gamepad",
         ],
         "mapping": {
-            "A": [0],
-            "B": [1],
-            "X": [2],
-            "Y": [3],
-            "L": [4],
-            "R": [5],
-            "SELECT": [6],
-            "START": [7],
-        },
-    },
-    # Logitech controllers
-    {
-        "id": "logitech",
-        "description": "Logitech Controller",
-        "name_patterns": [
-            "logitech", "rumblepad", "f310", "f510", "f710",
-        ],
-        "mapping": {
-            # XInput mode: same as Xbox
             "A": [0],
             "B": [1],
             "X": [2],
@@ -429,6 +227,265 @@ DEFAULT_MAPPING = {
     "SELECT": [6],
     "START": [7],
 }
+
+
+# ============================================================================
+# SDL GAMECONTROLLERDB INTEGRATION
+# ============================================================================
+# Parses the community-sourced gamecontrollerdb.txt (from
+# https://github.com/mdqinc/SDL_GameControllerDB) to provide automatic
+# button mappings for thousands of controllers by GUID.
+#
+# This is used as a fallback AFTER our hand-crafted profiles but BEFORE
+# the heuristic/default detection, giving us broad coverage without
+# bloating our own profiles list.
+# ============================================================================
+
+# Cached DB: maps (guid, platform) -> parsed mapping dict
+_gcdb_cache = None
+_gcdb_loaded = False
+
+
+def _get_current_platform():
+    """Get the current platform string matching gamecontrollerdb format."""
+    import platform as _plat
+    system = _plat.system().lower()
+    if system == 'windows':
+        return 'Windows'
+    elif system == 'darwin':
+        return 'Mac OS X'
+    else:
+        return 'Linux'
+
+
+def _find_gcdb_path():
+    """Find gamecontrollerdb.txt in likely locations."""
+    candidates = []
+    
+    try:
+        import config as cfg
+        if hasattr(cfg, 'BASE_DIR'):
+            candidates.append(os.path.join(cfg.BASE_DIR, "gamecontrollerdb.txt"))
+    except ImportError:
+        pass
+    
+    candidates.append(os.path.abspath("gamecontrollerdb.txt"))
+    
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _parse_sdl_mapping_value(value_str):
+    """Parse a single SDL mapping value like 'b0', 'h0.1', 'a2', '-a1', '+a0'.
+    
+    Also handles the '~' inversion suffix (e.g. 'a3~' = inverted axis 3).
+    
+    Returns:
+        tuple: (type, data) where type is 'button', 'hat', 'axis_dir',
+               or 'axis_full'. None if unparseable.
+    """
+    v = value_str.strip().rstrip('~')  # Strip inversion marker
+    
+    try:
+        if v.startswith('b'):
+            return ('button', int(v[1:]))
+        
+        elif v.startswith('h'):
+            parts = v[1:].split('.')
+            hat_idx = int(parts[0])
+            hat_val = int(parts[1])
+            return ('hat', (hat_idx, hat_val))
+        
+        elif v.startswith('-a') or v.startswith('+a'):
+            sign = -1 if v[0] == '-' else 1
+            axis_idx = int(v[2:])
+            return ('axis_dir', (axis_idx, sign))
+        
+        elif v.startswith('a'):
+            axis_idx = int(v[1:])
+            return ('axis_full', axis_idx)
+    except (ValueError, IndexError):
+        pass
+    
+    return None
+
+
+def _convert_sdl_mapping(mapping_str):
+    """Convert an SDL GameControllerDB mapping string to Sinew format.
+    
+    Input: 'a:b0,b:b1,back:b6,dpup:h0.1,...,platform:Windows,'
+    Output: Sinew mapping dict with A, B, L, R, SELECT, START, and dpad config
+    """
+    result = {}
+    dpad_buttons = {}
+    dpad_axes = set()
+    has_dpad = False
+    
+    # SDL name -> Sinew name mapping
+    # SDL uses SNES-style labels: a=bottom, b=right, x=left, y=top
+    # For GBA: A=confirm (bottom face), B=back (right face)
+    sdl_to_sinew = {
+        'a': 'A',           # Bottom face button -> GBA A (confirm)
+        'b': 'B',           # Right face button -> GBA B (back)
+        'x': 'X',           # Left face button
+        'y': 'Y',           # Top face button
+        'leftshoulder': 'L',
+        'rightshoulder': 'R',
+        'back': 'SELECT',
+        'start': 'START',
+    }
+    
+    # Hat value -> direction mapping (SDL standard)
+    # h0.1=up, h0.2=right, h0.4=down, h0.8=left
+    hat_to_direction = {
+        1: 'up',
+        2: 'right',
+        4: 'down',
+        8: 'left',
+    }
+    
+    # D-pad SDL names
+    dpad_sdl_names = {
+        'dpup': 'up',
+        'dpdown': 'down',
+        'dpleft': 'left',
+        'dpright': 'right',
+    }
+    
+    entries = mapping_str.split(',')
+    for entry in entries:
+        entry = entry.strip()
+        if not entry or ':' not in entry:
+            continue
+        
+        key, value = entry.split(':', 1)
+        key = key.strip()
+        value = value.strip()
+        
+        if key == 'platform':
+            continue
+        
+        parsed = _parse_sdl_mapping_value(value)
+        if parsed is None:
+            continue
+        
+        ptype, pdata = parsed
+        
+        # Handle face/shoulder buttons
+        if key in sdl_to_sinew:
+            sinew_name = sdl_to_sinew[key]
+            if ptype == 'button':
+                result[sinew_name] = [pdata]
+        
+        # Handle d-pad
+        elif key in dpad_sdl_names:
+            has_dpad = True
+            direction = dpad_sdl_names[key]
+            
+            if ptype == 'hat':
+                # Hat-based d-pad — this is the most common.
+                # We don't need to store anything special; controller.py's
+                # default hat_map handles standard hat values.
+                pass
+            
+            elif ptype == 'button':
+                # Button-based d-pad
+                dpad_buttons[direction] = [pdata]
+            
+            elif ptype == 'axis_dir':
+                # Axis-based d-pad (e.g. dpup:-a1)
+                axis_idx, sign = pdata
+                # Add the axis pair
+                if direction in ('left', 'right'):
+                    pair_y = axis_idx + 1 if axis_idx % 2 == 0 else axis_idx
+                    dpad_axes.add((axis_idx, pair_y))
+                else:
+                    pair_x = axis_idx - 1 if axis_idx % 2 == 1 else axis_idx
+                    dpad_axes.add((pair_x, axis_idx))
+    
+    # Add d-pad config to result
+    if dpad_buttons:
+        result['_dpad_buttons'] = dpad_buttons
+    if dpad_axes:
+        result['_dpad_axes'] = list(dpad_axes)
+    
+    return result
+
+
+def _load_gamecontrollerdb():
+    """Load and parse gamecontrollerdb.txt, caching the results.
+    
+    Returns:
+        dict: Maps GUID string -> {'name': str, 'mapping': dict}
+              Only entries for the current platform are included.
+    """
+    global _gcdb_cache, _gcdb_loaded
+    
+    if _gcdb_loaded:
+        return _gcdb_cache
+    
+    _gcdb_loaded = True
+    _gcdb_cache = {}
+    
+    path = _find_gcdb_path()
+    if not path:
+        return _gcdb_cache
+    
+    current_platform = _get_current_platform()
+    count = 0
+    
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                
+                # Check platform filter
+                if f'platform:{current_platform},' not in line:
+                    continue
+                
+                # Parse: GUID,Name,mappings...,platform:XXX,
+                parts = line.split(',', 2)
+                if len(parts) < 3:
+                    continue
+                
+                guid = parts[0].strip()
+                name = parts[1].strip()
+                mapping_str = parts[2]
+                
+                if not guid or not name:
+                    continue
+                
+                mapping = _convert_sdl_mapping(mapping_str)
+                if mapping:
+                    _gcdb_cache[guid] = {
+                        'name': name,
+                        'mapping': mapping,
+                    }
+                    count += 1
+        
+        if count > 0:
+            print(f"[ControllerProfiles] Loaded {count} mappings from {os.path.basename(path)} ({current_platform})")
+    except Exception as e:
+        print(f"[ControllerProfiles] Error loading gamecontrollerdb.txt: {e}")
+    
+    return _gcdb_cache
+
+
+def lookup_gamecontrollerdb(guid):
+    """Look up a controller GUID in the GameControllerDB.
+    
+    Args:
+        guid: SDL GUID string
+        
+    Returns:
+        dict with 'name', 'mapping' if found, None otherwise
+    """
+    db = _load_gamecontrollerdb()
+    return db.get(guid)
 
 
 # ============================================================================
@@ -479,6 +536,17 @@ def identify_controller(name, guid=None, num_buttons=0, num_axes=0, num_hats=0):
                         "mapping": dict(profile["mapping"]),
                         "match_type": "name",
                     }
+    
+    # Pass 2.5: Try GameControllerDB (community database with ~2000+ entries)
+    if guid:
+        gcdb_result = lookup_gamecontrollerdb(guid)
+        if gcdb_result:
+            return {
+                "id": "gcdb",
+                "description": gcdb_result["name"],
+                "mapping": dict(gcdb_result["mapping"]),
+                "match_type": "gcdb",
+            }
     
     # Pass 3: Heuristic based on button/axis count
     # PS4/PS5 controllers typically report 13+ buttons

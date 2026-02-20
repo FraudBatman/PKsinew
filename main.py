@@ -3409,7 +3409,6 @@ if __name__ == "__main__":
     running = True
     while running:
         dt = clock.tick(60)
-        controller.update(dt)
         
         events = pygame.event.get()
         for event in events:
@@ -3433,12 +3432,20 @@ if __name__ == "__main__":
             
             controller.process_event(event)
         
+        # Update controller AFTER event.get() so key.get_pressed() is current
+        controller.update(dt)
+        
+        # Strip KEYDOWN/KEYUP events for keys the controller already handles
+        # via keyboard polling.  This prevents double-processing (once through
+        # controller.handle_controller and once through raw KEYDOWN handlers).
+        filtered_events = controller.filter_kb_events(events)
+        
         # Check if game_screen wants to close
         if game_screen.should_close:
             running = False
             continue
         
-        if not game_screen.update(events, dt):
+        if not game_screen.update(filtered_events, dt):
             running = False
         
         # Render to virtual surface
