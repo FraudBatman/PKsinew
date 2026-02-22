@@ -130,7 +130,7 @@ def get_audio_settings():
     All other platforms: larger buffer for stability.
     """
     if is_linux_arm():
-        return 256, 8
+        return 256, 4
     return 1024, 4
 
 
@@ -435,8 +435,9 @@ class MgbaEmulator:
         self._frame_meta = {"width": 0, "height": 0, "pitch": 0}
         self._frame_ready = False
         
-        # Audio
-        self.audio_queue = deque(maxlen=32)
+        # Audio — buffer and queue depth tuned per platform
+        _audio_buf, _audio_queue_depth = get_audio_settings()
+        self.audio_queue = deque(maxlen=_audio_queue_depth)
         self._audio_lock = threading.Lock()
         self._audio_channel = None
         self._audio_thread = None
