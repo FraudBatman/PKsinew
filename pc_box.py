@@ -12,12 +12,13 @@ import os
 from save_data_manager import get_manager
 from gif_sprite_handler import get_sprite_cache
 
-# Import config for paths
-try:
-    import config
-    CONFIG_AVAILABLE = True
-except ImportError:
-    CONFIG_AVAILABLE = False
+from config import (
+    get_sprite_path,
+    FONT_PATH,
+    SPRITES_DIR,
+    GEN3_NORMAL_DIR,
+    POKEMON_DB_PATH
+)
 
 # Try to import achievements
 try:
@@ -247,7 +248,7 @@ class PCBox:
         self.undo_icon_tinted = None
         self._undo_icon_last_color = None
         try:
-            icon_path = "data/sprites/icons/refresh-icon.png"
+            icon_path = os.path.join(SPRITES_DIR, "icons", "refresh-icon.png")
             if os.path.exists(icon_path):
                 self.undo_icon = pygame.image.load(icon_path).convert_alpha()
                 # Scale to fit button (24x24 for a 32x32 button)
@@ -1823,7 +1824,7 @@ class PCBox:
         
         # Handle eggs
         if pokemon.get('egg'):
-            egg_path = "data/sprites/gen3/normal/egg.png"
+            egg_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
             if os.path.exists(egg_path):
                 return egg_path
             return None
@@ -1839,8 +1840,8 @@ class PCBox:
         species_str = str(species).zfill(3)
         
         # Build sprite path
-        sprite_folder = "data/sprites/gen3/shiny" if shiny else "data/sprites/gen3/normal"
-        sprite_path = f"{sprite_folder}/{species_str}.png"
+        sprite_folder = os.path.join(GEN3_NORMAL_DIR, "shiny") if shiny else GEN3_NORMAL_DIR
+        sprite_path = os.path.join(sprite_folder, f"{species_str}.png")
         
         if os.path.exists(sprite_path):
             return sprite_path
@@ -2268,7 +2269,13 @@ class PCBox:
             print(f"[PCBox] Withdraw FAILED: {e}", file=sys.stderr, flush=True)
             import traceback
             traceback.print_exc()
-            self._show_warning(f"Withdraw failed!\n{str(e)[:30]}")
+            # Use the full error message for short user-friendly errors (newlines = formatted for display),
+            # otherwise show a generic truncated message so the dialog doesn't overflow.
+            err_str = str(e)
+            if '\n' in err_str and len(err_str) <= 120:
+                self._show_warning(err_str)
+            else:
+                self._show_warning(f"Withdraw failed!\n{err_str[:40]}")
         
         finally:
             self._cancel_move_mode()
@@ -2635,7 +2642,7 @@ class PCBox:
         
         # Render text using the same font as the rest of the app
         try:
-            banner_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+            banner_font = pygame.font.Font(FONT_PATH, 10)
         except:
             try:
                 banner_font = pygame.font.Font(None, 18)
@@ -2796,9 +2803,8 @@ class PCBox:
         # Try to get species name from DB
         try:
             import json
-            db_path = "data/pokemon_db.json"
-            if os.path.exists(db_path):
-                with open(db_path, 'r', encoding='utf-8') as f:
+            if os.path.exists(POKEMON_DB_PATH):
+                with open(POKEMON_DB_PATH, 'r', encoding='utf-8') as f:
                     db = json.load(f)
                 
                 species_key = str(species_id).zfill(3)
@@ -3101,13 +3107,13 @@ class PCBox:
             
             if size == 'small':
                 # "HACK" text for small slots
-                tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 6)
+                tiny_font = pygame.font.Font(FONT_PATH, 6)
                 hack_text = tiny_font.render("HACK", True, (255, 100, 100))
                 hack_rect = hack_text.get_rect(centerx=rect.centerx, bottom=rect.bottom - 2)
                 surf.blit(hack_text, hack_rect)
             else:
                 # "ROM HACK" banner for large display
-                banner_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+                banner_font = pygame.font.Font(FONT_PATH, 10)
                 hack_text = banner_font.render("ROM HACK", True, (255, 80, 80))
                 hack_rect = hack_text.get_rect(centerx=rect.centerx, top=rect.top + 5)
                 
@@ -3195,7 +3201,7 @@ class PCBox:
             # For eggs, draw egg sprite
             elif poke and poke.get('egg'):
                 # Try to load egg sprite
-                egg_path = "data/sprites/gen3/normal/egg.png"
+                egg_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
                 if os.path.exists(egg_path):
                     try:
                         egg_sprite = pygame.image.load(egg_path).convert_alpha()
@@ -3208,7 +3214,7 @@ class PCBox:
                     except:
                         # Fallback to text if sprite fails
                         try:
-                            tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 8)
+                            tiny_font = pygame.font.Font(FONT_PATH, 8)
                             text = "EGG"
                             text_surf = tiny_font.render(text, True, ui_colors.COLOR_TEXT)
                             text_rect = text_surf.get_rect(center=rect.center)
@@ -3218,7 +3224,7 @@ class PCBox:
                 else:
                     # No egg sprite, show text
                     try:
-                        tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 8)
+                        tiny_font = pygame.font.Font(FONT_PATH, 8)
                         text = "EGG"
                         text_surf = tiny_font.render(text, True, ui_colors.COLOR_TEXT)
                         text_rect = text_surf.get_rect(center=rect.center)
@@ -3258,7 +3264,7 @@ class PCBox:
         
         # Draw row indicator text below grid
         try:
-            tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 8)
+            tiny_font = pygame.font.Font(FONT_PATH, 8)
             start_row = self.sinew_scroll_offset + 1
             end_row = min(self.sinew_scroll_offset + self.sinew_visible_rows, self.sinew_total_rows)
             indicator_text = f"Rows {start_row}-{end_row}/{self.sinew_total_rows}"
@@ -3328,8 +3334,8 @@ class PCBox:
             # Check if it's an egg
             if self.selected_pokemon.get('egg'):
                 # Show egg sprite (try PNG, then GIF)
-                egg_png_path = "data/sprites/gen3/normal/egg.png"
-                egg_gif_path = "data/sprites/showdown/normal/egg.gif"
+                egg_png_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
+                egg_gif_path = os.path.join(SPRITES_DIR, "showdown", "normal", "egg.gif")
                 
                 # Try gen3 PNG first
                 if os.path.exists(egg_png_path):
@@ -3400,7 +3406,7 @@ class PCBox:
         if self.selected_pokemon and not self.selected_pokemon.get('empty'):
             # Create slightly bigger font for info text
             try:
-                info_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
+                info_font = pygame.font.Font(FONT_PATH, 14)
             except:
                 info_font = self.font
             
@@ -3463,7 +3469,7 @@ class PCBox:
         elif self.sinew_mode:
             # Show Sinew storage stats when no Pokemon selected
             try:
-                info_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+                info_font = pygame.font.Font(FONT_PATH, 10)
                 padding = 8
                 y_offset = self.info_area.y + padding
                 line_height = 14
@@ -3526,7 +3532,7 @@ class PCBox:
             pygame.draw.rect(surf, (r//2, g//2, b//2), disabled_rect)
             pygame.draw.rect(surf, (r, g, b), disabled_rect, 2)
             try:
-                btn_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+                btn_font = pygame.font.Font(FONT_PATH, 10)
                 text = "No Party"
                 # Dimmed text color
                 tr, tg, tb = ui_colors.COLOR_TEXT[:3] if len(ui_colors.COLOR_TEXT) >= 3 else (80, 80, 90)
@@ -3594,7 +3600,7 @@ class PCBox:
                         surf.blit(self.undo_icon_tinted, icon_rect)
                     else:
                         # Fallback to "U" text if icon not loaded
-                        undo_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
+                        undo_font = pygame.font.Font(FONT_PATH, 14)
                         u_surf = undo_font.render("U", True, ui_colors.COLOR_TEXT)
                         u_rect = u_surf.get_rect(center=undo_rect.center)
                         surf.blit(u_surf, u_rect)
@@ -3610,7 +3616,7 @@ class PCBox:
         
         # ------------------- Draw Controller Hints -------------------
         try:
-            hint_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 8)
+            hint_font = pygame.font.Font(FONT_PATH, 8)
             if self.sinew_mode:
                 hints = "L/R: Scroll  A: Select  B: Back"
             elif self.party_panel_open:
@@ -3720,7 +3726,7 @@ class PCBox:
                             # No sprite, draw text instead
                             try:
                                 text = self.manager.format_pokemon_display(poke)
-                                tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+                                tiny_font = pygame.font.Font(FONT_PATH, 10)
                                 text_surf = tiny_font.render(text[:8], True, ui_colors.COLOR_TEXT)
                                 text_rect = text_surf.get_rect(center=slot.center)
                                 surf.blit(text_surf, text_rect)
@@ -3728,7 +3734,7 @@ class PCBox:
                                 pass
                     else:
                         # Draw egg sprite for eggs
-                        egg_path = "data/sprites/gen3/normal/egg.png"
+                        egg_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
                         if os.path.exists(egg_path):
                             try:
                                 egg_sprite = self.sprite_cache.get_png_sprite(egg_path, size=None)
@@ -3743,7 +3749,7 @@ class PCBox:
                             except:
                                 # Fallback to text if sprite fails
                                 try:
-                                    tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+                                    tiny_font = pygame.font.Font(FONT_PATH, 10)
                                     text_surf = tiny_font.render("EGG", True, ui_colors.COLOR_TEXT)
                                     text_rect = text_surf.get_rect(center=slot.center)
                                     surf.blit(text_surf, text_rect)
@@ -3752,7 +3758,7 @@ class PCBox:
                         else:
                             # No egg sprite, show text
                             try:
-                                tiny_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
+                                tiny_font = pygame.font.Font(FONT_PATH, 10)
                                 text_surf = tiny_font.render("EGG", True, ui_colors.COLOR_TEXT)
                                 text_rect = text_surf.get_rect(center=slot.center)
                                 surf.blit(text_surf, text_rect)
@@ -3781,7 +3787,7 @@ class PCBox:
         
         # Draw "MOVE MODE" indicator at bottom
         try:
-            font = pygame.font.Font("fonts/Pokemon_GB.ttf", 12)
+            font = pygame.font.Font(FONT_PATH, 12)
             mode_text = font.render("MOVE MODE - Select empty slot", True, (255, 255, 100))
             text_rect = mode_text.get_rect(centerx=self.width // 2, bottom=self.height - 10)
             
@@ -3834,7 +3840,7 @@ class PCBox:
         
         # Draw menu items
         try:
-            font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
+            font = pygame.font.Font(FONT_PATH, 14)
             
             for i, item in enumerate(self.options_menu_items):
                 item_y = menu_y + 15 + i * 30
@@ -3878,8 +3884,8 @@ class PCBox:
         pygame.draw.rect(surf, ui_colors.COLOR_BORDER, dialog_rect, 3)
         
         try:
-            font = pygame.font.Font("fonts/Pokemon_GB.ttf", 12)
-            small_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
+            font = pygame.font.Font(FONT_PATH, 12)
+            small_font = pygame.font.Font(FONT_PATH, 14)
             
             # Draw message (multiline)
             lines = self.confirmation_dialog_message.split('\n')
@@ -3942,9 +3948,9 @@ class PCBox:
         pygame.draw.rect(surf, ui_colors.COLOR_BORDER, dialog_rect, 3)
         
         try:
-            font = pygame.font.Font("fonts/Pokemon_GB.ttf", 12)
-            title_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
-            small_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 14)
+            font = pygame.font.Font(FONT_PATH, 12)
+            title_font = pygame.font.Font(FONT_PATH, 14)
+            small_font = pygame.font.Font(FONT_PATH, 14)
             
             evo_info = self.evolution_dialog_info
             pokemon = self.evolution_dialog_pokemon
@@ -4269,9 +4275,9 @@ class PCBox:
         pygame.draw.rect(surf, (150, 100, 200), dialog_rect, 3)
         
         try:
-            font = pygame.font.Font("fonts/Pokemon_GB.ttf", 11)
-            title_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 13)
-            small_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 12)
+            font = pygame.font.Font(FONT_PATH, 11)
+            title_font = pygame.font.Font(FONT_PATH, 13)
+            small_font = pygame.font.Font(FONT_PATH, 12)
             
             # Title with wavy effect
             title_text = title_font.render("~ Echoes ~", True, (200, 150, 255))
@@ -4356,8 +4362,8 @@ class PCBox:
         pygame.draw.rect(surf, (150, 100, 200), frame_rect, 3)
         
         try:
-            title_font = pygame.font.Font("fonts/Pokemon_GB.ttf", 10)
-            font = pygame.font.Font("fonts/Pokemon_GB.ttf", 9)
+            title_font = pygame.font.Font(FONT_PATH, 10)
+            font = pygame.font.Font(FONT_PATH, 9)
             
             # Title - inside the frame
             title = title_font.render("WHAT NEVER WAS", True, (200, 150, 255))
@@ -4411,19 +4417,9 @@ class PCBox:
                     # Get sprite - try multiple paths
                     species_id = poke['species']
                     species_str = str(species_id).zfill(3)
-                    
                     sprite = None
-                    # Build sprite paths - use config if available
-                    if CONFIG_AVAILABLE and hasattr(config, 'get_sprite_path'):
-                        sprite_paths = [config.get_sprite_path(species_id, sprite_type="gen3")]
-                    elif CONFIG_AVAILABLE and hasattr(config, 'GEN3_NORMAL_DIR'):
-                        sprite_paths = [os.path.join(config.GEN3_NORMAL_DIR, f"{species_str}.png")]
-                    else:
-                        sprite_paths = [
-                            f"data/sprites/gen3/normal/{species_str}.png",
-                            f"data/sprites/gen3/{species_str}.png",
-                            f"sprites/gen3/normal/{species_str}.png",
-                        ]
+                    # Build sprite paths
+                    sprite_paths = [get_sprite_path(species_id, sprite_type="gen3")]
                     
                     for sprite_path in sprite_paths:
                         if os.path.exists(sprite_path):
@@ -4554,8 +4550,7 @@ class PCBox:
         pygame.draw.rect(warning_surf, (er, eg, eb, alpha), (0, 0, warning_width, warning_height), 3)
         
         try:
-            font_path = config.FONT_PATH if CONFIG_AVAILABLE else "fonts/Pokemon_GB.ttf"
-            font = pygame.font.Font(font_path, 12)
+            font = pygame.font.Font(FONT_PATH, 12)
             
             # Draw warning text
             for i, line in enumerate(lines):

@@ -218,23 +218,35 @@ def get_pc_pokemon_offset(save_data, block_offset, box_number, slot_number, game
     # Box wallpapers take next 14 bytes
     # Pokemon data starts at offset 4 in PC buffer
     pc_pokemon_start = 4
-    
+
     box_index = box_number - 1
     pokemon_index = (box_index * BOX_SIZE) + slot_number
     pokemon_offset_in_pc = pc_pokemon_start + (pokemon_index * POKEMON_PC_SIZE)
-    
+
     # PC data spans sections 5-13
     # Calculate which section and offset within section
     bytes_per_section = SECTION_DATA_SIZE
-    
+
     # Section 5 starts PC data
     section_index = 5 + (pokemon_offset_in_pc // bytes_per_section)
     offset_in_section = pokemon_offset_in_pc % bytes_per_section
-    
+
     # Validate section index is within expected range (5-13)
     if section_index < 5 or section_index > 13:
         raise ValueError(f"Calculated section {section_index} is out of PC range (5-13). Box={box_number}, Slot={slot_number}")
-    
+
+    # Check if section 5 exists (save is early if not).
+    # All sections reading as 0xFFFF means PC storage hasn't been initialized yet —
+    # this happens when the player saved after receiving a starter but before getting
+    # the Pokedex (the game doesn't write PC sections until then).
+    section_5_offset = find_section_by_id(save_data, block_offset, 5)
+    if section_5_offset is None:
+        raise ValueError(
+            "Save too early in game!\n"
+            "Get the Pokedex first,\n"
+            "then save before transferring."
+        )
+
     # Find the section
     section_offset = find_section_by_id(save_data, block_offset, section_index)
     if section_offset is None:
@@ -247,16 +259,16 @@ def get_pc_pokemon_offset(save_data, block_offset, box_number, slot_number, game
                 found_sections.append(sid)
             except:
                 found_sections.append(-1)
-        
+
         raise ValueError(
             f"Could not find section {section_index} in save data.\n"
             f"  Box={box_number}, Slot={slot_number}, BlockOffset=0x{block_offset:X}\n"
             f"  Sections found: {found_sections}\n"
             f"  Save size: {len(save_data)} bytes"
         )
-    
+
     global_offset = section_offset + offset_in_section
-    
+
     return section_offset, offset_in_section, global_offset
 
 
