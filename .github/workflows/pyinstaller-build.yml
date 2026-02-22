@@ -82,6 +82,7 @@ jobs:
           rm dist/PKsinew
           '
 
+      # trunk-ignore(checkov/CKV2_GHA_1)
       - name: Set permissions
         if: runner.os != 'Windows' && matrix.os != 'ubuntu-latest'
         run: |

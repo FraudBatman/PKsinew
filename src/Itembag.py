@@ -463,5 +463,5 @@ class ItemBagScreen:
             instr_surf = self.font_small.render(hints, True, (120, 120, 120))
             instr_rect = instr_surf.get_rect(centerx=self.w // 2, bottom=self.h - 5)
             surf.blit(instr_surf, instr_rect)
-        except:
+        except Exception:
             pass

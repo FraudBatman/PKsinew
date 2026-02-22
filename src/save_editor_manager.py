@@ -7,6 +7,8 @@ import os
 import subprocess
 import sys
 
+from gen3_save_parser import Gen3SaveParser
+
 from config import MGBA_PATH, PARSER_LOCATIONS, ROM_PATHS, SAVES_DIR
 from item_names import get_item_name
 
@@ -20,8 +22,6 @@ for location in PARSER_LOCATIONS:
 
 if not parser_found:
     raise ImportError("Parser files not found! Check parser directory location.")
-
-from gen3_save_parser import Gen3SaveParser
 
 
 class SaveEditorManager:

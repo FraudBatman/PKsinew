@@ -601,7 +601,7 @@ class PokedexModal:
 
         if is_now_sinew and not was_sinew:
             # Switched TO Sinew - enable combined mode
-            print(f"[PokedexModal] Switching to combined mode (Sinew)")
+            print("[PokedexModal] Switching to combined mode (Sinew)")
             self.combined_mode = True
             self.refresh_data()
         elif not is_now_sinew and was_sinew:

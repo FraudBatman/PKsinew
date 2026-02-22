@@ -11,7 +11,7 @@ import webbrowser
 import pygame
 
 import ui_colors  # Import module for dynamic theme colors
-from config import *
+from config import DATA_DIR, EXT_DIR, FONT_PATH, SETTINGS_FILE
 from controller import NavigableList, get_controller
 
 
@@ -21,7 +21,7 @@ def load_sinew_settings():
         try:
             with open(SETTINGS_FILE, "r") as f:
                 return json.load(f)
-        except:
+        except Exception:
             pass
     return {}
 
@@ -1478,8 +1478,6 @@ class MainSetup:
             # The active emulator instance is accessed through main - best effort
             import sys
 
-            from mgba_emulator import MgbaEmulator
-
             for obj in sys.modules.values():
                 if hasattr(obj, "emulator") and hasattr(
                     obj.emulator, "reload_keyboard_config"
@@ -1520,7 +1518,10 @@ class MainSetup:
                 print(f"[Settings] Error clearing sprite cache: {e}")
 
         # Clear __pycache__ folders
-        for root, dirs, files in os.walk("."):
+        for (
+            root,
+            dirs,
+        ) in os.walk("."):
             for d in dirs:
                 if d == "__pycache__":
                     cache_path = os.path.join(root, d)
@@ -1528,7 +1529,7 @@ class MainSetup:
                         shutil.rmtree(cache_path)
                         if "pycache" not in cleared_items:
                             cleared_items.append("pycache")
-                    except:
+                    except Exception:
                         pass
 
         if cleared_items:
@@ -1986,7 +1987,7 @@ class MainSetup:
                                 settings = load_sinew_settings()
                                 settings["dev_mode"] = True
                                 save_sinew_settings(settings)
-                            except:
+                            except Exception:
                                 pass
 
                             # Trigger Dev Mode achievement instantly
@@ -2414,7 +2415,7 @@ class ChangelogScreen:
             self.font_header = pygame.font.Font(FONT_PATH, 16)
             self.font_text = pygame.font.Font(FONT_PATH, 11)
             self.font_small = pygame.font.Font(FONT_PATH, 9)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 22)
             self.font_text = pygame.font.SysFont(None, 16)
             self.font_small = pygame.font.SysFont(None, 12)
@@ -2532,7 +2533,7 @@ class ChangelogScreen:
         max_lines = (content_rect.height - 20) // line_height
         y = content_rect.y + 10
 
-        for i, (text, style) in enumerate(
+        for _, (text, style) in enumerate(
             self.lines[self.scroll : self.scroll + max_lines]
         ):
             if y > content_rect.bottom - 15:
@@ -2583,7 +2584,7 @@ class AboutLegalScreen:
             self.font_header = pygame.font.Font(FONT_PATH, 16)
             self.font_text = pygame.font.Font(FONT_PATH, 11)
             self.font_small = pygame.font.Font(FONT_PATH, 9)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 22)
             self.font_text = pygame.font.SysFont(None, 16)
             self.font_small = pygame.font.SysFont(None, 12)

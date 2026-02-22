@@ -71,17 +71,14 @@ POKEMON_DB_PATH = os.path.join(DATA_DIR, "pokemon_db.json")
 # Font Paths
 FONT_PATH = os.path.join(FONTS_DIR, "Pokemon_GB.ttf")
 FONT_SOLID_PATH = os.path.join(FONTS_DIR, "Pokemon Solid.ttf")
-
 # ===== Emulator Paths =====
 # Platform-specific core detection
-import platform as _platform
 
 
 def get_platform_info():
     """Get platform and architecture info for core selection."""
-    system = _platform.system().lower()
-    machine = _platform.machine().lower()
-
+    system = platform.system().lower()
+    machine = platform.machine().lower()
     # Determine OS name
     if system == "windows":
         os_name = "windows"

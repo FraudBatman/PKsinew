@@ -3,10 +3,8 @@ Database Builder Screen
 Shows a terminal-like output box for building/rebuilding the Pokemon database
 """
 
-import io
 import os
 import runpy
-import subprocess
 import sys
 import threading
 import traceback
@@ -16,7 +14,7 @@ import pygame
 import config
 import ui_colors
 from config import BASE_DIR, FONT_PATH
-from controller import NavigableList, get_controller
+from controller import get_controller
 
 
 class DBBuilderScreen:
@@ -154,7 +152,7 @@ class DBBuilderScreen:
 
                 self._add_line("Build finished successfully!")
 
-            except Exception as e:
+            except Exception:
                 self._add_line(f"Build Error: {traceback.format_exc()}")
             finally:
                 sys.stdout = old_stdout
@@ -215,7 +213,7 @@ class DBBuilderScreen:
                 sys.stdout = UILogger(self._add_line)
                 sys.stderr = sys.stdout
 
-                self._add_line(f"Starting wallpaper generation...")
+                self._add_line("Starting wallpaper generation...")
 
                 # Execute the script
                 custom_globals = globals().copy()

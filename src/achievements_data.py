@@ -281,14 +281,14 @@ def get_achievement_name_by_id(ach_id: str) -> str:
     # Handle pattern IDs (like *_021)
     if ach_id.startswith("*"):
         suffix = ach_id[1:]  # Remove the *
-        for s, reward in PERGAME_ACHIEVEMENT_REWARDS.items():
+        for s, _ in PERGAME_ACHIEVEMENT_REWARDS.items():
             if s == suffix:
                 # Return a generic description
                 if suffix == "_021":
                     return "First Badge (any game)"
                 elif suffix == "_044":
                     return "First Level 50 (any game)"
-        return f"Achievement {suffix}"
+            return f"Achievement {suffix}"
 
     # Check all game achievements
     for game in GAMES + ["Sinew"]:
@@ -297,7 +297,7 @@ def get_achievement_name_by_id(ach_id: str) -> str:
             for ach in achs:
                 if ach["id"] == ach_id:
                     return ach["name"]
-        except:
+        except Exception:
             pass
 
     return ach_id  # Fallback to ID
@@ -328,7 +328,7 @@ def _calculate_points(hint: str, category: str) -> int:
                 base += 15
             elif val >= 20:
                 base += 5
-    except:
+    except Exception:
         pass
 
     # Bonus for specific achievements
@@ -1596,7 +1596,6 @@ def check_achievement_unlocked(
         bool: True if achievement condition is met
     """
     hint = ach.get("hint", "")
-    ach_id = ach.get("id", "unknown")
 
     # Helper to parse "field >= N" style hints
     def parse_threshold(hint_str):
@@ -1607,7 +1606,7 @@ def check_achievement_unlocked(
             try:
                 required = int(parts[1].strip().split()[0])
                 return field, required
-            except:
+            except Exception:
                 pass
         return None, None
 

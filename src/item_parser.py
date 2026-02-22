@@ -221,7 +221,7 @@ class ItemParser:
                 money = money_lower ^ self.item_key
                 if 0 <= money <= 999999:
                     return money
-        except:
+        except Exception:
             pass
         return 0
 

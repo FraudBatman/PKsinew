@@ -156,7 +156,7 @@ class SpriteCache:
                     if size:
                         sprite = pygame.transform.smoothscale(sprite, size)
                     self.cache[cache_key] = sprite
-                except:
+                except Exception:
                     self.cache[cache_key] = None
             else:
                 self.cache[cache_key] = None

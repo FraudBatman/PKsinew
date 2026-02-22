@@ -11,9 +11,8 @@ import time
 import pygame
 
 import ui_colors
-from config import ACH_REWARDS_PATH, ACH_SAVE_PATH, EXT_DIR, FONT_PATH
-from controller import NavigableList, get_controller
-from ui_components import Button
+from config import ACH_SAVE_PATH, FONT_PATH
+from controller import get_controller
 
 # Lazy imports to avoid circular import issues
 # from achievements_data import get_achievements_for, check_achievement_unlocked, GAME_ACHIEVEMENTS, GAMES
@@ -63,7 +62,7 @@ class AchievementNotification:
             self.font_title = pygame.font.Font(FONT_PATH, 12)
             self.font_text = pygame.font.Font(FONT_PATH, 9)
             self.font_sinew = pygame.font.Font(FONT_PATH, 24)
-        except:
+        except Exception:
             self.font_title = pygame.font.SysFont(None, 18)
             self.font_text = pygame.font.SysFont(None, 14)
             self.font_sinew = pygame.font.SysFont(None, 32)
@@ -236,7 +235,7 @@ class AchievementNotification:
                     reward_text = "+ REWARD!"
                 gift_surf = self.font_text.render(reward_text, True, (255, 200, 100))
                 surf.blit(gift_surf, (banner_rect.x + 130, banner_rect.y + 42))
-        except:
+        except Exception:
             pass
 
         # Game tag
@@ -457,7 +456,7 @@ class AchievementManager:
                             print(
                                 f"[Achievements] Force unlock: {ach['name']} ({current}/{required} for '{key}' in {game})"
                             )
-                    except Exception as e:
+                    except Exception:
                         pass
 
                 # Check == True style hints
@@ -469,7 +468,7 @@ class AchievementManager:
                             print(
                                 f"[Achievements] Force unlock (bool): {ach['name']} ({key}=True)"
                             )
-                    except:
+                    except Exception:
                         pass
 
                 # Species ownership hints - use per-game owned_set for non-Sinew, combined_pokedex for Sinew
@@ -487,7 +486,7 @@ class AchievementManager:
                             print(
                                 f"[Achievements] Force unlock (species): {ach['name']} (species {species_id} in {game} pokedex)"
                             )
-                    except:
+                    except Exception:
                         pass
 
                 # Check Latias/Latios
@@ -551,7 +550,7 @@ class AchievementManager:
         print("\n[Achievements] === STUCK ACHIEVEMENTS DEBUG ===")
 
         # Show tracking values for each game
-        print(f"[Achievements] Per-game tracking:")
+        print("[Achievements] Per-game tracking:")
         for game in GAMES + ["Sinew", "global"]:
             game_tracking = self.tracking.get(game, {})
             if game_tracking:
@@ -684,7 +683,7 @@ class AchievementManager:
                     min(100, int((current / required) * 100)) if required > 0 else 0
                 )
                 return (current, required, percentage)
-            except:
+            except Exception:
                 pass
 
         # Boolean checks (== True style hints)
@@ -714,7 +713,7 @@ class AchievementManager:
 
                 current = 1 if species_id in owned else 0
                 return (current, 1, current * 100)
-            except:
+            except Exception:
                 pass
 
         if "owns_regi_trio" in hint:
@@ -927,7 +926,7 @@ class AchievementManager:
                 if success:
                     messages.append(f"Theme '{theme_name}' unlocked!")
                 else:
-                    return False, f"Failed to unlock theme"
+                    return False, "Failed to unlock theme"
 
             elif reward_type == "pokemon":
                 # UPDATED: Use achievement ID for dynamic generation
@@ -1099,7 +1098,7 @@ class AchievementManager:
                             # Check if slot is truly empty
                             is_empty = (
                                 slot is None
-                                or slot.get("empty", False) == True
+                                or slot.get("empty", False)
                                 or slot.get("species", 0) == 0
                             )
 
@@ -1405,7 +1404,7 @@ class AchievementManager:
             from pokemon_database import get_species_name
 
             return get_species_name(species_id)
-        except:
+        except Exception:
             # Fallback for common mythicals
             names = {151: "Mew", 251: "Celebi", 385: "Jirachi", 386: "Deoxys"}
             return names.get(species_id, f"Pokemon #{species_id}")
@@ -1539,7 +1538,7 @@ class AchievementManager:
                 # Also reset tracking
                 if "Sinew" in self.tracking:
                     self.tracking["Sinew"]["altering_cave_echoes"] = 0
-                print(f"[Achievements] Also reset Altering Cave progress (0/7)")
+                print("[Achievements] Also reset Altering Cave progress (0/7)")
 
             self._save_progress()
             print(f"[Achievements] Reset: {achievement_id}")
@@ -1557,7 +1556,7 @@ class AchievementManager:
                     "hint", ""
                 ):
                     return True
-        except:
+        except Exception:
             pass
         return False
 
@@ -1578,7 +1577,7 @@ class AchievementManager:
                         del self.progress[ach["id"]]
                         print(f"[Achievements] Removed achievement: {ach['id']}")
                     break
-        except:
+        except Exception:
             pass
 
         self._save_progress()
@@ -1604,7 +1603,7 @@ class AchievementManager:
         try:
             if os.path.exists(ACH_SAVE_PATH):
                 os.remove(ACH_SAVE_PATH)
-                print(f"[Achievements] Deleted save file")
+                print("[Achievements] Deleted save file")
         except Exception as e:
             print(f"[Achievements] Could not delete file: {e}")
 
@@ -1721,7 +1720,7 @@ class AchievementManager:
                         else:
                             current = game_tracking.get(key, 0)
                             should_be_unlocked = current >= required
-                    except:
+                    except Exception:
                         should_be_unlocked = True  # Can't verify, keep it
 
                 # Check == True style hints
@@ -1737,7 +1736,7 @@ class AchievementManager:
                             )
                         else:
                             should_be_unlocked = game_tracking.get(key, False)
-                    except:
+                    except Exception:
                         should_be_unlocked = True
 
                 # Check species ownership
@@ -1756,7 +1755,7 @@ class AchievementManager:
                             owned = game_tracking.get("owned_set", set())
                         if owned is not None:
                             should_be_unlocked = species_id in owned
-                    except:
+                    except Exception:
                         should_be_unlocked = True
 
                 elif "owns_species_380_or_381" in hint:
@@ -2027,7 +2026,7 @@ class AchievementManager:
                         print(
                             f"[Achievements] Sinew storage achievement unlocked: {ach['name']} ({sinew_storage_count}/{required})"
                         )
-                except:
+                except Exception:
                     pass
 
             # Check transfer count achievements
@@ -2036,7 +2035,7 @@ class AchievementManager:
                     required = int(hint.split(">=")[1].strip().split()[0])
                     if transfer_count >= required:
                         unlocked = True
-                except:
+                except Exception:
                     pass
 
             # Check shiny count achievements
@@ -2051,7 +2050,7 @@ class AchievementManager:
                         print(
                             f"[Achievements] Shiny achievement unlocked: {ach['name']}"
                         )
-                except:
+                except Exception:
                     pass
 
             # Check evolution count achievements
@@ -2060,7 +2059,7 @@ class AchievementManager:
                     required = int(hint.split(">=")[1].strip().split()[0])
                     if evolution_count >= required:
                         unlocked = True
-                except:
+                except Exception:
                     pass
 
             if unlocked:
@@ -2165,7 +2164,7 @@ class AchievementsScreen:
             self.font_text = pygame.font.Font(FONT_PATH, 11)
             self.font_small = pygame.font.Font(FONT_PATH, 9)
             self.font_sinew = pygame.font.Font(FONT_PATH, 16)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 22)
             self.font_text = pygame.font.SysFont(None, 16)
             self.font_small = pygame.font.SysFont(None, 12)
@@ -2442,17 +2441,6 @@ class AchievementsScreen:
         tab_x = 10
         total_width = self.width - 20
 
-        # Calculate tab widths based on text length
-        tab_labels = [
-            "All",
-            "Ruby",
-            "Sapphire",
-            "Emerald",
-            "FireRed",
-            "LeafGreen",
-            "Sinew",
-        ]
-
         for i, tab in enumerate(self.tabs):
             is_selected = i == self.selected_tab
 
@@ -2649,7 +2637,7 @@ class AchievementsScreen:
                         if reward_type == "both":
                             pokemon_name = reward_info.get("pokemon_name", "Gift")
                             theme_name = reward_info.get("theme_name", "Theme")
-                            reward_name = f"Theme + Pokemon"
+                            reward_name = "Theme + Pokemon"
                         elif reward_type == "pokemon":
                             reward_name = (
                                 f"Pokemon: {reward_info.get('name', 'Pokemon')}"

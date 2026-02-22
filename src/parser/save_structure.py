@@ -53,7 +53,7 @@ def find_active_save_slot(data):
                 return 0x0000  # A wrapped around, A is newer
             return 0xE000  # B is newer
 
-    except:
+    except Exception:
         return 0x0000  # Default to slot A
 
 
@@ -336,9 +336,7 @@ def detect_game_type(data, section_offsets):
                     )
                     return "RS", "Ruby/Sapphire"
         else:
-            print(
-                f"[GameDetect] Ruby/Sapphire detected: security_key=0 (no encryption)"
-            )
+            print("[GameDetect] Ruby/Sapphire detected: security_key=0 (no encryption)")
             return "RS", "Ruby/Sapphire"
 
         return "RS", "Ruby/Sapphire"
@@ -371,7 +369,7 @@ def detect_game_type(data, section_offsets):
 
         # Still tied - default to RSE since detection is uncertain
         # RSE is a safer default as it doesn't use item encryption
-        print(f"[GameDetect] Tie-breaker: defaulting to RS (safer for item parsing)")
+        print("[GameDetect] Tie-breaker: defaulting to RS (safer for item parsing)")
         return "RS", "Ruby/Sapphire"
 
 
@@ -450,7 +448,7 @@ def _validate_pokemon_at_offset(data, offset):
 
         return species_valid and exp_valid
 
-    except:
+    except Exception:
         return False
 
 

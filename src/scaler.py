@@ -152,7 +152,7 @@ class Scaler:
                         if self.fullscreen
                         else self._windowed_height
                     )
-            except:
+            except Exception:
                 pass
 
         self.scale_x = self.window_width / self.virtual_width

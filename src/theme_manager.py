@@ -6,7 +6,7 @@ Handles loading, applying, and saving theme preferences
 import json
 import os
 
-from config import EXT_DIR, FONT_PATH, FONTS_DIR, SAVES_DIR, THEMES_DIR
+from config import FONT_PATH, FONTS_DIR, SAVES_DIR, THEMES_DIR
 
 # Default theme values (Dark theme)
 DEFAULT_THEME = {
@@ -201,7 +201,7 @@ def save_theme_preference(theme_name, settings_path=None):
         try:
             with open(settings_path, "r") as f:
                 settings = json.load(f)
-        except:
+        except Exception:
             pass
 
     settings["theme"] = theme_name
@@ -234,7 +234,7 @@ def load_theme_preference(settings_path=None):
             with open(settings_path, "r") as f:
                 settings = json.load(f)
                 theme_name = settings.get("theme", "Dark")
-        except:
+        except Exception:
             pass
 
     apply_theme(theme_name)

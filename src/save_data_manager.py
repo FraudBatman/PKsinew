@@ -19,7 +19,7 @@ from config import (
 
 # Import from modular parser package
 try:
-    from parser import Gen3SaveParser, convert_species_to_national, get_item_name
+    from parser import Gen3SaveParser, get_item_name
     from parser.trainer import format_play_time, format_trainer_id
 
     PARSER_AVAILABLE = True
@@ -29,7 +29,7 @@ except ImportError:
     MODULAR_PARSER = False
     # Fallback if parser not in path - try monolithic parser
     try:
-        from gen3_save_parser import Gen3SaveParser, convert_species_to_national
+        from gen3_save_parser import Gen3SaveParser
 
         from item_names import get_item_name
 
@@ -67,7 +67,7 @@ def _load_species_names():
         try:
             with open(POKEMON_DB_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            for key, value in data.items():
+            for value in data.items():
                 if isinstance(value, dict) and "id" in value and "name" in value:
                     _species_names[value["id"]] = value["name"]
         except Exception as e:
@@ -609,7 +609,6 @@ class SaveDataManager:
             return None
 
         species = pokemon.get("species", 0)
-        nickname = pokemon.get("nickname", "???")
 
         if species == 0:
             return None
@@ -617,9 +616,6 @@ class SaveDataManager:
         # Auto-detect shiny if not explicitly set
         if not shiny:
             shiny = self.is_pokemon_shiny(pokemon)
-
-        # Format species number as 3-digit string (001, 002, etc.)
-        species_str = str(species).zfill(3)
 
         # Construct sprite path based on type
         if use_showdown:
@@ -696,9 +692,6 @@ class SaveDataManager:
         species = pokemon.get("species", 0)
         if species == 0:
             return None
-
-        # Format species number as 3-digit string (001, 002, etc.)
-        species_str = str(species).zfill(3)
 
         # Gen8 icons path
         icon_path = get_sprite_path(species, sprite_type="gen8")

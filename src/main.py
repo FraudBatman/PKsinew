@@ -2,12 +2,19 @@
 Sinew Game Screen - Integrated Version
 """
 
+import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
+import pygame
+from PIL import Image, ImageSequence
+
+import config
+import ui_colors
 from config import (
     CORES_DIR,
     DATA_DIR,
@@ -20,6 +27,8 @@ from config import (
     SPRITES_DIR,
     SYSTEM_DIR,
 )
+from save_data_manager import get_manager, precache_save
+from ui_components import Button
 
 # =============================================================================
 # LOGGING SETUP - Initialize before other imports to capture all output
@@ -147,17 +156,6 @@ if sys.platform == "win32" and not getattr(sys, "frozen", False):
     # Skip when frozen (PyInstaller) — let SDL auto-select; forcing directsound
     # can fail if the driver DLL isn't found in the temp extraction folder.
     os.environ.setdefault("SDL_AUDIODRIVER", "directsound")
-
-import json
-import time
-
-import pygame
-from PIL import Image, ImageSequence
-
-import config
-import ui_colors
-from save_data_manager import get_manager, precache_save
-from ui_components import Button
 
 # Try to import modals
 try:
@@ -442,7 +440,7 @@ def load_settings():
         try:
             with open(SETTINGS_FILE, "r") as f:
                 return json.load(f)
-        except:
+        except Exception:
             pass
     return {}
 
@@ -545,7 +543,7 @@ class DBWarningPopup:
             self.font_title = pygame.font.Font(FONT_PATH, 14)
             self.font_text = pygame.font.Font(FONT_PATH, 10)
             self.font_button = pygame.font.Font(FONT_PATH, 11)
-        except:
+        except Exception:
             self.font_title = pygame.font.SysFont(None, 20)
             self.font_text = pygame.font.SysFont(None, 16)
             self.font_button = pygame.font.SysFont(None, 18)
@@ -685,7 +683,9 @@ class DBWarningPopup:
 
         # Buttons - use same positioning as _get_button_rects
         button_rects = self._get_button_rects()
-        for i, (btn_text, rect) in enumerate(zip(self.buttons, button_rects)):
+        for i, (btn_text, rect) in enumerate(
+            zip(self.buttons, button_rects, strict=False)
+        ):
             if i == self.selected_button:
                 pygame.draw.rect(surf, ui_colors.COLOR_BUTTON_HOVER, rect)
                 pygame.draw.rect(surf, ui_colors.COLOR_HIGHLIGHT, rect, 3)
@@ -919,7 +919,7 @@ class GameScreen:
                         if hasattr(manager, "get_pokedex_data"):
                             pokedex = manager.get_pokedex_data()
                             owned_list = pokedex.get("owned_list", [])
-                    except:
+                    except Exception:
                         pass
 
                     # Get playtime
@@ -933,7 +933,7 @@ class GameScreen:
                         playtime_hours = (playtime.get("hours", 0) or 0) + (
                             (playtime.get("minutes", 0) or 0) / 60.0
                         )
-                    except:
+                    except Exception:
                         pass
 
                     ach_save_data = {
@@ -1302,14 +1302,14 @@ class GameScreen:
                     hours = playtime.get("hours", 0) or 0
                     minutes = playtime.get("minutes", 0) or 0
                     ach_save_data["playtime_hours"] = hours + (minutes / 60.0)
-                except:
+                except Exception:
                     ach_save_data["playtime_hours"] = 0
             elif hasattr(manager, "parser") and manager.parser:
                 try:
                     hours = getattr(manager.parser, "play_hours", 0) or 0
                     minutes = getattr(manager.parser, "play_minutes", 0) or 0
                     ach_save_data["playtime_hours"] = hours + (minutes / 60.0)
-                except:
+                except Exception:
                     ach_save_data["playtime_hours"] = 0
 
             playtime_h = ach_save_data.get("playtime_hours", 0)
@@ -1571,7 +1571,7 @@ class GameScreen:
 
                                 if species in EEVEELUTION_SPECIES:
                                     owned_eeveelutions.add(species)
-                    except:
+                    except Exception:
                         pass
 
                     # Get PC Pokemon
@@ -1603,7 +1603,7 @@ class GameScreen:
 
                                             if species in EEVEELUTION_SPECIES:
                                                 owned_eeveelutions.add(species)
-                    except:
+                    except Exception:
                         pass
 
                     # Get pokedex count AND owned list
@@ -1631,7 +1631,7 @@ class GameScreen:
                             pokedex = manager.get_pokedex_data()
                             owned_list = pokedex.get("owned_list", [])
                             combined_pokedex.update(owned_list)
-                    except:
+                    except Exception:
                         pass
 
                     # Get money
@@ -1639,7 +1639,7 @@ class GameScreen:
                         total_money += (
                             manager.get_money() if hasattr(manager, "get_money") else 0
                         )
-                    except:
+                    except Exception:
                         pass
 
                     # Get playtime
@@ -1652,7 +1652,7 @@ class GameScreen:
                         hours = playtime.get("hours", 0) or 0
                         minutes = playtime.get("minutes", 0) or 0
                         total_playtime += hours + (minutes / 60.0)
-                    except:
+                    except Exception:
                         pass
 
                     print(
@@ -1725,7 +1725,7 @@ class GameScreen:
 
                 settings = load_settings()
                 dev_mode_activated = settings.get("dev_mode", False)
-            except:
+            except Exception:
                 pass
 
             print(
@@ -1833,7 +1833,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_badges >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Global dex count (sum of caught across all saves)
@@ -1842,7 +1842,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_dex_caught >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Global champions
@@ -1851,7 +1851,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if games_with_champion >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Games with badges
@@ -1860,7 +1860,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if games_with_badges >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Games with 4+ badges (halfway)
@@ -1869,7 +1869,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if games_with_4plus_badges >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Games with full regional dex
@@ -1881,7 +1881,7 @@ class GameScreen:
                             print(
                                 f"[Achievements] Regional dex achievement: {games_with_full_dex}/{required}"
                             )
-                    except:
+                    except Exception:
                         pass
 
                 # Global money
@@ -1890,7 +1890,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_money >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Global playtime
@@ -1899,7 +1899,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_playtime >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Combined pokedex (Dirty Dex - unique species across all saves)
@@ -1912,7 +1912,7 @@ class GameScreen:
                                 print(
                                     f"[Achievements] DIRTY DEX COMPLETE! {len(combined_pokedex)}/386 unique species across all saves!"
                                 )
-                    except:
+                    except Exception:
                         pass
 
                 # Legendary ownership checks (species ID based)
@@ -1949,7 +1949,7 @@ class GameScreen:
                     # Latias (380) or Latios (381)
                     if 380 in combined_pokedex or 381 in combined_pokedex:
                         unlocked = True
-                        print(f"[Achievements] Latias/Latios unlocked!")
+                        print("[Achievements] Latias/Latios unlocked!")
                     else:
                         print(
                             f"[Achievements] Latias/Latios check: 380 in pokedex={380 in combined_pokedex}, 381 in pokedex={381 in combined_pokedex}"
@@ -1980,7 +1980,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_pc_pokemon >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Shiny Pokemon count
@@ -1989,7 +1989,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_shiny_pokemon >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Level 100 Pokemon
@@ -1998,7 +1998,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_level100 >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Level 50+ Pokemon
@@ -2007,7 +2007,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if total_level50plus >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Full parties count
@@ -2016,7 +2016,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if games_with_full_party >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Starter Pokemon
@@ -2025,7 +2025,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if starter_lines_owned >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Eeveelutions
@@ -2034,7 +2034,7 @@ class GameScreen:
                         required = int(hint.split(">=")[1].strip().split()[0])
                         if len(owned_eeveelutions) >= required:
                             unlocked = True
-                    except:
+                    except Exception:
                         pass
 
                 # Dev mode discovery
@@ -2502,7 +2502,7 @@ class GameScreen:
                         try:
                             badges = manager.get_badges()
                             badge_count = sum(1 for b in badges if b)
-                        except:
+                        except Exception:
                             pass
 
             if badge_count < 8:
@@ -2598,7 +2598,7 @@ class GameScreen:
 
         # Count total items to load
         total_items = 0
-        for gname, game_data in self.games.items():
+        for _, game_data in self.games.items():
             if game_data.get("title_gif"):
                 total_items += 1
             if game_data.get("sav"):
@@ -3362,7 +3362,7 @@ class GameScreen:
             self.emulator._pause_combo_setting = (
                 self.emulator._load_pause_combo_setting()
             )
-            print(f"[Sinew] Reloaded pause combo in emulator")
+            print("[Sinew] Reloaded pause combo in emulator")
 
     def _get_pause_combo_name(self):
         """Get the name of the current pause combo (e.g., 'START+SELECT')"""
@@ -3430,10 +3430,10 @@ class GameScreen:
         # Render text using the same font as the rest of the app
         try:
             banner_font = pygame.font.Font(FONT_PATH, 10)
-        except:
+        except Exception:
             try:
                 banner_font = pygame.font.Font(None, 18)
-            except:
+            except Exception:
                 banner_font = pygame.font.SysFont(None, 18)
 
         # Pulsing text color
@@ -3508,7 +3508,7 @@ class GameScreen:
                         joy.init()
                         if custom_btn < joy.get_numbuttons():
                             combo_held = joy.get_button(custom_btn)
-                except:
+                except Exception:
                     pass
         else:
             # Button combo
@@ -3545,7 +3545,7 @@ class GameScreen:
                             if isinstance(idx, int) and idx < num_buttons:
                                 if joy.get_button(idx):
                                     buttons_held[btn_name] = True
-            except:
+            except Exception:
                 pass
 
             # Check if all required buttons are held
@@ -3604,7 +3604,7 @@ class GameScreen:
                                     break
 
                     return all(buttons_held.get(btn, False) for btn in required_buttons)
-        except:
+        except Exception:
             pass
         return False
 
@@ -3687,7 +3687,7 @@ class GameScreen:
             # Pause text (smaller font since we're at 240x160 now)
             try:
                 pause_font = pygame.font.Font(FONT_PATH, 8)
-            except:
+            except Exception:
                 pause_font = self.font
 
             pause_text = pause_font.render("PAUSED", True, (255, 255, 0))
@@ -4055,7 +4055,7 @@ class GameScreen:
             # Resume when combo triggers and was previously released
             if combo_held and self._emulator_pause_combo_released:
                 self._emulator_pause_combo_released = False
-                print(f"[Sinew] Resume triggered - calling emulator.resume()")
+                print("[Sinew] Resume triggered - calling emulator.resume()")
                 print(
                     f"[Sinew] Before resume: paused={self.emulator.paused}, loaded={self.emulator.loaded}"
                 )
@@ -4140,9 +4140,9 @@ class GameScreen:
                         menu_button = Button(
                             menu_items[self.menu_index],
                             rel_rect=(0.25, 0.65, 0.5, 0.12),
-                            callback=lambda: self._open_menu(
-                                menu_items[self.menu_index]
-                            ),
+                            callback=lambda item=menu_items[
+                                self.menu_index
+                            ]: self._open_menu(item),
                         )
                         menu_button.handle_event(event)
 
@@ -4201,7 +4201,7 @@ class GameScreen:
         if self.modal_instance:
             if hasattr(self.modal_instance, "update"):
                 result = self.modal_instance.update(events)
-                if result == False:
+                if not result:
                     self._close_modal()
 
         return not self.should_close
@@ -4223,14 +4223,11 @@ class GameScreen:
                 surf.blit(self.sinew_logo, (0, 0))
             else:
                 surf.fill(self.sinew_bg_color)
-            text_color = (255, 255, 255)
         elif game_data["frames"]:
             bg_surf = game_data["frames"][game_data["frame_index"]]
             surf.blit(bg_surf, (0, 0))
-            text_color = (255, 255, 255)
         else:
             surf.fill(ui_colors.COLOR_BG)
-            text_color = (255, 255, 255)
 
         # Draw main menu or modal
         if self.modal_instance:
@@ -4319,7 +4316,7 @@ class GameScreen:
             hint_text = "< > Change Game    ^ v Scroll Menu"
             try:
                 hint_font = pygame.font.Font(FONT_PATH, 8)
-            except:
+            except Exception:
                 hint_font = pygame.font.SysFont(None, 14)
             hint_surf = hint_font.render(hint_text, True, (150, 150, 150))
             hint_rect = hint_surf.get_rect(
@@ -4390,7 +4387,7 @@ if __name__ == "__main__":
     try:
         settings = load_settings()
         start_fullscreen = settings.get("fullscreen", False)
-    except:
+    except Exception:
         pass
 
     # Create scaler

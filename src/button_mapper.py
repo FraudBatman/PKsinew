@@ -14,7 +14,7 @@ import os
 import pygame
 
 from config import FONT_PATH
-from ui_colors import *
+from ui_colors import COLOR_HIGHLIGHT, COLOR_TEXT
 
 
 class ButtonMapper:
@@ -119,7 +119,7 @@ class ButtonMapper:
             self.font_text = pygame.font.Font(FONT_PATH, 11)
             self.font_small = pygame.font.Font(FONT_PATH, 9)
             self.font_tiny = pygame.font.Font(FONT_PATH, 7)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 22)
             self.font_text = pygame.font.SysFont(None, 16)
             self.font_small = pygame.font.SysFont(None, 14)
@@ -179,7 +179,6 @@ class ButtonMapper:
         self.gba_rect = pygame.Rect((width - gba_width) // 2, 40, gba_width, gba_height)
 
         # Screen area (the "display" part of the GBA)
-        screen_margin = 0.08
         self.screen_rect = pygame.Rect(
             self.gba_rect.x + int(gba_width * 0.30),
             self.gba_rect.y + int(gba_height * 0.15),
@@ -252,7 +251,7 @@ class ButtonMapper:
                         ]:
                             if dpad_key in dpad_bindings:
                                 self.mapping[dpad_key] = dpad_bindings[dpad_key]
-                        print(f"[ButtonMapper] Loaded saved d-pad bindings")
+                        print("[ButtonMapper] Loaded saved d-pad bindings")
                         return
         except Exception as e:
             print(f"[ButtonMapper] Could not load dpad from profile: {e}")
@@ -313,7 +312,7 @@ class ButtonMapper:
                 try:
                     with open(self.CONFIG_FILE, "r") as f:
                         config = json.load(f)
-                except:
+                except Exception:
                     pass
 
             # Save to legacy flat key for backward compatibility

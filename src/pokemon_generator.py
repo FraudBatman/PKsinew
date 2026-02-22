@@ -1692,7 +1692,6 @@ def generate_pid_for_nature_shiny(
         current_nature = pid % 25
         if current_nature != nature_id:
             # Adjust PID to match nature while keeping other properties
-            adjustment = (nature_id - current_nature) % 25
             pid = (pid // 25) * 25 + nature_id
             if pid > 0xFFFFFFFF:
                 pid -= 25
@@ -1820,7 +1819,6 @@ class PokemonGenerator:
         held_item = recipe.get("held_item", None)
         shiny = recipe.get("shiny", False)
         ball = recipe.get("ball", "Poke Ball")
-        gender = recipe.get("gender", "RANDOM")
         ability_slot = recipe.get("ability", 0)  # 0 = slot 1, 1 = slot 2
         friendship = recipe.get("friendship", None)
         language = recipe.get("language", "ENG")
@@ -2102,7 +2100,7 @@ class PokemonGenerator:
             return self.generate_pokemon(self.recipes[achievement_id])
 
         # Fallback: search through recipes
-        for key, recipe in self.recipes.items():
+        for recipe in self.recipes.items():
             if recipe.get("achievement") == achievement_id:
                 return self.generate_pokemon(recipe)
 
@@ -2111,7 +2109,7 @@ class PokemonGenerator:
     def generate_for_echo(self, species_name: str) -> Optional[Tuple[bytes, Dict]]:
         """Generate a Pokemon for the Echo (Altering Cave) system."""
         # Find recipe by species name with echo delivery
-        for species, recipe in self.recipes.items():
+        for recipe in self.recipes.items():
             if recipe.get("species", "").lower() == species_name.lower():
                 if recipe.get("delivery") == "echo":
                     return self.generate_pokemon(recipe)
@@ -2135,7 +2133,7 @@ class PokemonGenerator:
     def get_echo_pokemon_list(self) -> List[Dict]:
         """Get list of available Echo Pokemon."""
         echo_pokemon = []
-        for species, recipe in self.recipes.items():
+        for recipe in self.recipes.items():
             if recipe.get("delivery") == "echo":
                 national_id = SPECIES_NAME_TO_ID.get(recipe.get("species", ""), 0)
                 echo_pokemon.append(

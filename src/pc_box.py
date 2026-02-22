@@ -5,6 +5,7 @@ Supports Sinew cross-game storage with 120 slots per box
 """
 
 import os
+import sys
 
 import pygame
 from pygame.locals import *
@@ -877,7 +878,7 @@ class PCBox:
                             "Game is running!\nStop game first\nto use Echo"
                         )
                         print(
-                            f"[PCBox] Blocked Altering Cave exchange - game is running"
+                            "[PCBox] Blocked Altering Cave exchange - game is running"
                         )
                         return
 
@@ -1236,7 +1237,7 @@ class PCBox:
                         self._show_warning("Undo: Pokemon restored!")
                         self._refresh_current_box()
 
-                print(f"[PCBox] Undo release successful")
+                print("[PCBox] Undo release successful")
 
             elif action_type == "move":
                 move_type = action.get("move_type")
@@ -1266,7 +1267,7 @@ class PCBox:
 
                         self._show_warning("Undo: Move reversed!")
                         self._refresh_current_box()
-                        print(f"[PCBox] Undo sinew_to_sinew successful")
+                        print("[PCBox] Undo sinew_to_sinew successful")
 
                 elif move_type == "game_to_sinew":
                     # Undo deposit: clear Sinew, restore to game save
@@ -1299,7 +1300,7 @@ class PCBox:
 
                         self._show_warning("Undo: Move reversed!")
                         self._refresh_current_box()
-                        print(f"[PCBox] Undo game_to_sinew successful")
+                        print("[PCBox] Undo game_to_sinew successful")
 
                 elif move_type == "sinew_to_game":
                     # Undo withdrawal: restore to Sinew, clear from game save
@@ -1323,7 +1324,7 @@ class PCBox:
 
                         self._show_warning("Undo: Move reversed!")
                         self._refresh_current_box()
-                        print(f"[PCBox] Undo sinew_to_game successful")
+                        print("[PCBox] Undo sinew_to_game successful")
 
                 elif move_type == "game_to_game":
                     # Undo game-to-game transfer
@@ -1363,7 +1364,7 @@ class PCBox:
 
                         self._show_warning("Undo: Move reversed!")
                         self._refresh_current_box()
-                        print(f"[PCBox] Undo game_to_game successful")
+                        print("[PCBox] Undo game_to_game successful")
 
             # Clear undo state after successful undo
             self.undo_available = False
@@ -1374,7 +1375,7 @@ class PCBox:
             import traceback
 
             traceback.print_exc()
-            self._show_warning(f"Undo failed!")
+            self._show_warning("Undo failed!")
 
     def _get_prev_party_pokemon(self):
         """Get previous Pokemon in party for summary navigation"""
@@ -1516,11 +1517,11 @@ class PCBox:
         """Export the selected Pokemon as a .pks file for achievement rewards (DEV MODE ONLY)"""
         import sys
 
-        print(f"[PCBox] *** DEV: Export triggered ***", file=sys.stderr, flush=True)
+        print("[PCBox] *** DEV: Export triggered ***", file=sys.stderr, flush=True)
 
         if not self.selected_pokemon:
             print(
-                f"[PCBox] *** DEV: No Pokemon selected! ***",
+                "[PCBox] *** DEV: No Pokemon selected! ***",
                 file=sys.stderr,
                 flush=True,
             )
@@ -1538,7 +1539,7 @@ class PCBox:
         raw_bytes = pokemon.get("raw_bytes")
         if not raw_bytes:
             print(
-                f"[PCBox] *** DEV: No raw bytes available - cannot export! ***",
+                "[PCBox] *** DEV: No raw bytes available - cannot export! ***",
                 file=sys.stderr,
                 flush=True,
             )
@@ -1582,7 +1583,7 @@ class PCBox:
         try:
             os.makedirs(rewards_dir, exist_ok=True)
             print(
-                f"[PCBox] *** DEV: Directory created/exists ***",
+                "[PCBox] *** DEV: Directory created/exists ***",
                 file=sys.stderr,
                 flush=True,
             )
@@ -1733,7 +1734,7 @@ class PCBox:
         evolution_info = self.evolution_dialog_info
         save_path = getattr(self, "evolution_dialog_save_path", None)
 
-        print(f"\n[PCBox] ===== TRADE EVOLUTION =====", file=sys.stderr, flush=True)
+        print("\n[PCBox] ===== TRADE EVOLUTION =====", file=sys.stderr, flush=True)
         print(
             f"[PCBox] {evolution_info['from_name']} -> {evolution_info['to_name']}",
             file=sys.stderr,
@@ -1748,8 +1749,8 @@ class PCBox:
                 # Evolution in game save
                 self._execute_game_evolution(box, slot, save_path, evolution_info)
 
-            print(f"[PCBox] Evolution complete!", file=sys.stderr, flush=True)
-            print(f"[PCBox] ===== EVOLUTION DONE =====\n", file=sys.stderr, flush=True)
+            print("[PCBox] Evolution complete!", file=sys.stderr, flush=True)
+            print("[PCBox] ===== EVOLUTION DONE =====\n", file=sys.stderr, flush=True)
 
             # Track evolution for achievements
             try:
@@ -2193,13 +2194,13 @@ class PCBox:
 
         if dest_poke is not None:
             # Slot occupied - swap
-            print(f"[PCBox] Swapping Pokemon", file=sys.stderr, flush=True)
+            print("[PCBox] Swapping Pokemon", file=sys.stderr, flush=True)
 
         # Perform the move
         if self.sinew_storage.move_pokemon(
             source_box, source_slot, dest_box_num, actual_dest_slot
         ):
-            print(f"[PCBox] Sinew move successful", file=sys.stderr, flush=True)
+            print("[PCBox] Sinew move successful", file=sys.stderr, flush=True)
 
             # Store undo action
             self.undo_action = {
@@ -2216,13 +2217,12 @@ class PCBox:
             # Track achievement progress after move
             self._track_sinew_achievement()
         else:
-            print(f"[PCBox] Sinew move failed", file=sys.stderr, flush=True)
+            print("[PCBox] Sinew move failed", file=sys.stderr, flush=True)
 
         self._cancel_move_mode()
 
     def _attempt_game_to_sinew_move(self, dest_type, dest_box, dest_slot):
         """Attempt to deposit Pokemon from a game save into Sinew storage"""
-        import sys
 
         if not self.sinew_storage:
             self._show_warning("Sinew storage\nnot available!")
@@ -2296,7 +2296,7 @@ class PCBox:
         source = self.moving_pokemon_source
         dest = self.pending_move_dest
 
-        print(f"\n[PCBox] ===== DEPOSIT TO SINEW =====", file=sys.stderr, flush=True)
+        print("\n[PCBox] ===== DEPOSIT TO SINEW =====", file=sys.stderr, flush=True)
         print(
             f"[PCBox] From: {source['game']} {source['type']} {source.get('box', 'N/A')}, slot {source.get('slot')}",
             file=sys.stderr,
@@ -2320,7 +2320,7 @@ class PCBox:
             ):
                 raise ValueError("Failed to store in Sinew storage")
 
-            print(f"[PCBox] Stored in Sinew storage", file=sys.stderr, flush=True)
+            print("[PCBox] Stored in Sinew storage", file=sys.stderr, flush=True)
 
             # 2. Clear source slot in game save
             source_save_path = source.get("save_path")
@@ -2384,7 +2384,7 @@ class PCBox:
             print(
                 f"[PCBox] Deposit complete: {pokemon_name}", file=sys.stderr, flush=True
             )
-            print(f"[PCBox] ===== DEPOSIT DONE =====\n", file=sys.stderr, flush=True)
+            print("[PCBox] ===== DEPOSIT DONE =====\n", file=sys.stderr, flush=True)
 
             # 5. Track achievement progress
             self._track_sinew_achievement(
@@ -2502,7 +2502,6 @@ class PCBox:
         pokemon_name = self.moving_pokemon.get("nickname") or self.moving_pokemon.get(
             "species_name", "Pokemon"
         )
-        source = self.moving_pokemon_source
 
         message = f"Withdraw {pokemon_name}\nfrom Sinew Storage\nto {dest_game}\nBox {self.box_index + 1}, Slot {dest_slot + 1}?"
 
@@ -2531,7 +2530,7 @@ class PCBox:
         source = self.moving_pokemon_source
         dest = self.pending_move_dest
 
-        print(f"\n[PCBox] ===== WITHDRAW FROM SINEW =====", file=sys.stderr, flush=True)
+        print("\n[PCBox] ===== WITHDRAW FROM SINEW =====", file=sys.stderr, flush=True)
         print(
             f"[PCBox] From: Sinew Storage {source['box']}, slot {source['slot']}",
             file=sys.stderr,
@@ -2593,9 +2592,7 @@ class PCBox:
             # 2. Clear source slot in Sinew storage
             if self.sinew_storage:
                 self.sinew_storage.clear_slot(source["box"], source["slot"])
-                print(
-                    f"[PCBox] Cleared Sinew storage slot", file=sys.stderr, flush=True
-                )
+                print("[PCBox] Cleared Sinew storage slot", file=sys.stderr, flush=True)
 
             # Store undo action
             self.undo_action = {
@@ -2614,7 +2611,6 @@ class PCBox:
             self.undo_available = True
 
             # 3. Check for trade evolution (Sinew -> Game counts as a "trade")
-            evolution_triggered = False
             if TRADE_EVOLUTION_AVAILABLE and can_evolve_by_trade:
                 species_id = pokemon_copy.get("species", 0)
                 held_item = pokemon_copy.get("held_item", 0)
@@ -2640,7 +2636,6 @@ class PCBox:
                         dest_save_path,
                         dest.get("game", "Game"),
                     )
-                    evolution_triggered = True
                 else:
                     print(
                         f"[PCBox] No evolution available for species {species_id}",
@@ -2668,7 +2663,7 @@ class PCBox:
                 file=sys.stderr,
                 flush=True,
             )
-            print(f"[PCBox] ===== WITHDRAW DONE =====\n", file=sys.stderr, flush=True)
+            print("[PCBox] ===== WITHDRAW DONE =====\n", file=sys.stderr, flush=True)
 
             # 5. Track achievement progress (transfer from Sinew to game)
             self._track_sinew_achievement(transfer=True)
@@ -2843,7 +2838,7 @@ class PCBox:
         source = self.moving_pokemon_source
         dest = self.pending_move_dest
 
-        print(f"\n[PCBox] ===== EXECUTING TRANSFER =====", file=sys.stderr, flush=True)
+        print("\n[PCBox] ===== EXECUTING TRANSFER =====", file=sys.stderr, flush=True)
         print(
             f"[PCBox] From: {source['game']} box {source.get('box')}, slot {source.get('slot')}",
             file=sys.stderr,
@@ -2970,7 +2965,7 @@ class PCBox:
             }
             self.undo_available = True
 
-            print(f"[PCBox] Files written successfully", file=sys.stderr, flush=True)
+            print("[PCBox] Files written successfully", file=sys.stderr, flush=True)
 
             # 3. Force reload current save with fresh parser
             from parser.gen3_parser import Gen3SaveParser
@@ -2979,7 +2974,7 @@ class PCBox:
             self.manager.parser = fresh_parser
             self.manager.loaded = fresh_parser.loaded
             self.manager.current_save_path = dest_save_path
-            print(f"[PCBox] Created fresh parser", file=sys.stderr, flush=True)
+            print("[PCBox] Created fresh parser", file=sys.stderr, flush=True)
 
             # 4. Clear UI cache and refresh
             self.current_box_data = []
@@ -2993,7 +2988,7 @@ class PCBox:
                 file=sys.stderr,
                 flush=True,
             )
-            print(f"[PCBox] ===== TRANSFER DONE =====\n", file=sys.stderr, flush=True)
+            print("[PCBox] ===== TRANSFER DONE =====\n", file=sys.stderr, flush=True)
 
             # Check for trade evolution (only when moving between different games)
             if (
@@ -3046,7 +3041,7 @@ class PCBox:
                     settings = json.load(f)
                     if "pause_combo" in settings:
                         return settings["pause_combo"]
-        except:
+        except Exception:
             pass
         return default
 
@@ -3067,7 +3062,7 @@ class PCBox:
                         joy.init()
                         if custom_btn < joy.get_numbuttons():
                             return joy.get_button(custom_btn)
-                except:
+                except Exception:
                     pass
             return False
         else:
@@ -3078,7 +3073,7 @@ class PCBox:
                     if not ctrl._is_button_pressed(btn_name):
                         return False
                 return True
-            except:
+            except Exception:
                 return False
 
     def _get_pause_combo_name(self):
@@ -3152,10 +3147,10 @@ class PCBox:
         # Render text using the same font as the rest of the app
         try:
             banner_font = pygame.font.Font(FONT_PATH, 10)
-        except:
+        except Exception:
             try:
                 banner_font = pygame.font.Font(None, 18)
-            except:
+            except Exception:
                 banner_font = pygame.font.SysFont(None, 18)
 
         # Pulsing text color
@@ -3278,7 +3273,7 @@ class PCBox:
             else:
                 self.current_box_data = [None] * 120
                 self.party_data = []
-                print(f"[PCBox] Sinew storage not loaded!", file=sys.stderr, flush=True)
+                print("[PCBox] Sinew storage not loaded!", file=sys.stderr, flush=True)
         else:
             # Load from game save - ALWAYS reload from disk to catch external changes
             save_path = getattr(self.manager, "current_save_path", None)
@@ -3319,7 +3314,7 @@ class PCBox:
             else:
                 self.current_box_data = []
                 self.party_data = []
-                print(f"[PCBox] Manager not loaded!", file=sys.stderr, flush=True)
+                print("[PCBox] Manager not loaded!", file=sys.stderr, flush=True)
 
     def _enrich_pokemon_data(self, pokemon):
         """Add species_name to Pokemon data if missing"""
@@ -3345,7 +3340,7 @@ class PCBox:
                     )
                 else:
                     pokemon["species_name"] = f"#{species_id}"
-        except:
+        except Exception:
             pokemon["species_name"] = f"#{species_id}"
 
     def get_pokemon_at_grid_slot(self, grid_index):
@@ -3408,7 +3403,7 @@ class PCBox:
         """Change the current game and reload save data"""
         import sys
 
-        print(f"\n[PCBox] ===== GAME SWITCH =====", file=sys.stderr, flush=True)
+        print("\n[PCBox] ===== GAME SWITCH =====", file=sys.stderr, flush=True)
 
         # Call gamescreen to switch games
         if self.prev_game_callback and delta < 0:
@@ -3427,7 +3422,7 @@ class PCBox:
         if self.sinew_mode:
             # Sinew mode - use Sinew storage
             print(
-                f"[PCBox] Sinew mode activated - using Sinew storage",
+                "[PCBox] Sinew mode activated - using Sinew storage",
                 file=sys.stderr,
                 flush=True,
             )
@@ -3462,7 +3457,7 @@ class PCBox:
                 self.manager.loaded = fresh_parser.loaded
                 self.manager.current_save_path = new_path
 
-                print(f"[PCBox] Created fresh parser", file=sys.stderr, flush=True)
+                print("[PCBox] Created fresh parser", file=sys.stderr, flush=True)
 
             # Reset box index when leaving Sinew mode
             if was_sinew:
@@ -3482,7 +3477,7 @@ class PCBox:
         # Update UI
         self.update_game_button_text()
         self.box_button.text = self.get_box_name(self.box_index)
-        print(f"[PCBox] ===== SWITCH DONE =====\n", file=sys.stderr, flush=True)
+        print("[PCBox] ===== SWITCH DONE =====\n", file=sys.stderr, flush=True)
 
     def get_current_game(self):
         """Get the current game name"""
@@ -3679,7 +3674,7 @@ class PCBox:
                 pygame.draw.rect(surf, (60, 0, 0), bg_rect)
                 pygame.draw.rect(surf, (255, 80, 80), bg_rect, 1)
                 surf.blit(hack_text, hack_rect)
-        except:
+        except Exception:
             pass
 
     # ------------------- Draw Grid -------------------
@@ -3763,7 +3758,7 @@ class PCBox:
                         )
                         sprite_rect = sprite.get_rect(center=rect.center)
                         surf.blit(sprite, sprite_rect)
-                    except:
+                    except Exception:
                         pass  # If sprite fails to load, just show colored cell
 
                 # Draw ROM HACK overlay for Pokemon from ROM hacks
@@ -3785,7 +3780,7 @@ class PCBox:
                         )
                         sprite_rect = egg_sprite.get_rect(center=rect.center)
                         surf.blit(egg_sprite, sprite_rect)
-                    except:
+                    except Exception:
                         # Fallback to text if sprite fails
                         try:
                             tiny_font = pygame.font.Font(FONT_PATH, 8)
@@ -3795,7 +3790,7 @@ class PCBox:
                             )
                             text_rect = text_surf.get_rect(center=rect.center)
                             surf.blit(text_surf, text_rect)
-                        except:
+                        except Exception:
                             pass
                 else:
                     # No egg sprite, show text
@@ -3805,7 +3800,7 @@ class PCBox:
                         text_surf = tiny_font.render(text, True, ui_colors.COLOR_TEXT)
                         text_rect = text_surf.get_rect(center=rect.center)
                         surf.blit(text_surf, text_rect)
-                    except:
+                    except Exception:
                         pass
 
         # Draw scrollbar for Sinew mode
@@ -3860,7 +3855,7 @@ class PCBox:
                 right=self.grid_rect.right, top=self.grid_rect.bottom + 3
             )
             surf.blit(text_surf, text_rect)
-        except:
+        except Exception:
             pass
 
     # ------------------- Draw -------------------
@@ -3912,7 +3907,7 @@ class PCBox:
                     center=(self.width // 2, warning_banner_height // 2)
                 )
                 surf.blit(text_surf, text_rect)
-            except:
+            except Exception:
                 pass
 
         # Sprite area - semi-transparent background to match grid
@@ -3965,7 +3960,7 @@ class PCBox:
                         )
                         rect = egg_sprite.get_rect(center=self.sprite_area.center)
                         surf.blit(egg_sprite, rect.topleft)
-                    except:
+                    except Exception:
                         pass
                 # Fallback to showdown GIF
                 elif os.path.exists(egg_gif_path):
@@ -3995,7 +3990,7 @@ class PCBox:
                         )
                         rect = poke_sprite.get_rect(center=self.sprite_area.center)
                         surf.blit(poke_sprite, rect.topleft)
-                    except:
+                    except Exception:
                         # Fallback to cached image if loading fails
                         if self.current_sprite_image:
                             rect = self.current_sprite_image.get_rect(
@@ -4043,7 +4038,7 @@ class PCBox:
             # Create slightly bigger font for info text
             try:
                 info_font = pygame.font.Font(FONT_PATH, 14)
-            except:
+            except Exception:
                 info_font = self.font
 
             # Format name and info
@@ -4109,7 +4104,7 @@ class PCBox:
                         y_offset += line_height
                     else:
                         break  # Stop if we run out of space
-            except Exception as e:
+            except Exception:
                 pass
         elif self.sinew_mode:
             # Show Sinew storage stats when no Pokemon selected
@@ -4149,7 +4144,7 @@ class PCBox:
                     if y_offset + line_height <= self.info_area.bottom - padding:
                         surf.blit(text_surf, (text_x, y_offset))
                         y_offset += line_height
-            except:
+            except Exception:
                 pass
 
         # ------------------- Draw Top Buttons -------------------
@@ -4197,7 +4192,7 @@ class PCBox:
                 text_surf = btn_font.render(text, True, (tr // 2, tg // 2, tb // 2))
                 text_rect = text_surf.get_rect(center=disabled_rect.center)
                 surf.blit(text_surf, text_rect)
-            except:
+            except Exception:
                 pass
         else:
             if self.focus_mode == "side_buttons" and self.side_button_index == 0:
@@ -4274,7 +4269,7 @@ class PCBox:
                         u_surf = undo_font.render("U", True, ui_colors.COLOR_TEXT)
                         u_rect = u_surf.get_rect(center=undo_rect.center)
                         surf.blit(u_surf, u_rect)
-                except:
+                except Exception:
                     pass
             else:
                 self.undo_button_rect = None
@@ -4301,7 +4296,7 @@ class PCBox:
             )
             hint_surf = hint_font.render(hints, True, (tr // 2, tg // 2, tb // 2))
             surf.blit(hint_surf, (10, self.height - 15))
-        except:
+        except Exception:
             pass
 
         # ------------------- Draw Party Panel -------------------
@@ -4423,7 +4418,7 @@ class PCBox:
                                     )
                                     sprite_rect = sprite.get_rect(center=slot.center)
                                     surf.blit(sprite, sprite_rect)
-                            except:
+                            except Exception:
                                 pass  # If sprite fails, fall back to text
 
                             # Draw ROM HACK overlay for Pokemon from ROM hacks
@@ -4439,7 +4434,7 @@ class PCBox:
                                 )
                                 text_rect = text_surf.get_rect(center=slot.center)
                                 surf.blit(text_surf, text_rect)
-                            except:
+                            except Exception:
                                 pass
                     else:
                         # Draw egg sprite for eggs
@@ -4463,7 +4458,7 @@ class PCBox:
                                     surf.blit(egg_sprite, sprite_rect)
                                 else:
                                     raise Exception("Sprite cache failed")
-                            except:
+                            except Exception:
                                 # Fallback to text if sprite fails
                                 try:
                                     tiny_font = pygame.font.Font(FONT_PATH, 10)
@@ -4472,7 +4467,7 @@ class PCBox:
                                     )
                                     text_rect = text_surf.get_rect(center=slot.center)
                                     surf.blit(text_surf, text_rect)
-                                except:
+                                except Exception:
                                     pass
                         else:
                             # No egg sprite, show text
@@ -4483,7 +4478,7 @@ class PCBox:
                                 )
                                 text_rect = text_surf.get_rect(center=slot.center)
                                 surf.blit(text_surf, text_rect)
-                            except:
+                            except Exception:
                                 pass
 
         # Draw options menu overlay (on top of everything)
@@ -4521,7 +4516,7 @@ class PCBox:
             pygame.draw.rect(surf, (0, 0, 0, 200), bg_rect)
             pygame.draw.rect(surf, (255, 255, 100), bg_rect, 2)
             surf.blit(mode_text, text_rect)
-        except:
+        except Exception:
             pass
 
         # Draw sprite at current grid selection
@@ -4584,7 +4579,7 @@ class PCBox:
                 # Draw item text
                 text = font.render(item, True, ui_colors.COLOR_TEXT)
                 surf.blit(text, (menu_x + 30, item_y))
-        except:
+        except Exception:
             pass
 
     def _draw_confirmation_dialog(self, surf):
@@ -4649,7 +4644,7 @@ class PCBox:
             no_text = small_font.render("NO", True, ui_colors.COLOR_TEXT)
             no_text_rect = no_text.get_rect(center=no_rect.center)
             surf.blit(no_text, no_text_rect)
-        except:
+        except Exception:
             pass
 
     def _draw_evolution_dialog(self, surf):
@@ -4855,7 +4850,6 @@ class PCBox:
         full_rotations = random.randint(3, 5) * len(remaining) * item_height
         target_offset = full_rotations + (result_index * item_height)
         self.altering_cave_target_offset = target_offset
-
         print(
             f"[PCBox] Altering Cave spinner started - result will be: {self.altering_cave_spinner_result['name']} (index {result_index})"
         )
@@ -4947,7 +4941,7 @@ class PCBox:
                             f"[PCBox] SUCCESS: Replaced Zubat with {result_pokemon['name']} in Sinew box {box+1} slot {slot}"
                         )
                     else:
-                        print(f"[PCBox] ERROR: Failed to store in Sinew storage")
+                        print("[PCBox] ERROR: Failed to store in Sinew storage")
                         self.warning_message = "Error saving to Sinew storage!"
                         self.warning_message_timer = self.warning_message_duration
             else:
@@ -4969,7 +4963,7 @@ class PCBox:
                             f"[PCBox] SUCCESS: Replaced Zubat with {result_pokemon['name']} in game box {box+1} slot {slot}"
                         )
                     else:
-                        print(f"[PCBox] ERROR: Could not load save file")
+                        print("[PCBox] ERROR: Could not load save file")
                         self.warning_message = "Error loading save file!"
                         self.warning_message_timer = self.warning_message_duration
 
@@ -5202,7 +5196,6 @@ class PCBox:
 
                     # Get sprite - try multiple paths
                     species_id = poke["species"]
-                    species_str = str(species_id).zfill(3)
                     sprite = None
                     # Build sprite paths
                     sprite_paths = [get_sprite_path(species_id, sprite_type="gen3")]
@@ -5214,7 +5207,7 @@ class PCBox:
                                 # Scale to 48x48
                                 sprite = pygame.transform.scale(sprite, (48, 48))
                                 break
-                            except Exception as e:
+                            except Exception:
                                 continue
 
                     if sprite:
@@ -5380,7 +5373,7 @@ class PCBox:
                 text.set_alpha(alpha)
                 text_rect = text.get_rect(centerx=warning_width // 2, top=15 + i * 22)
                 warning_surf.blit(text, text_rect)
-        except:
+        except Exception:
             pass
 
         surf.blit(warning_surf, (warning_x, warning_y))

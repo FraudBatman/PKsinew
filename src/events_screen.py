@@ -98,7 +98,7 @@ class EventsScreen:
             self.font_header = pygame.font.Font(FONT_PATH, 14)
             self.font_text = pygame.font.Font(FONT_PATH, 10)
             self.font_small = pygame.font.Font(FONT_PATH, 8)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 20)
             self.font_text = pygame.font.SysFont(None, 16)
             self.font_small = pygame.font.SysFont(None, 12)
@@ -151,7 +151,7 @@ class EventsScreen:
                     "LeafGreen",
                 ]:
                     return raw_name
-        except:
+        except Exception:
             pass
 
         return None
@@ -200,7 +200,7 @@ class EventsScreen:
     def _get_available_events(self):
         """Get list of events available for current game"""
         if not self.game_name:
-            print(f"[Events] No game name detected, no events available")
+            print("[Events] No game name detected, no events available")
             return []
 
         available = []
@@ -277,7 +277,7 @@ class EventsScreen:
                     # Cannot safely attribute legacy data to any specific game.
                     # Return empty — will be overwritten with per-game format on next claim.
                     print(
-                        f"[Events] Legacy flat events_claimed detected — will migrate on next save"
+                        "[Events] Legacy flat events_claimed detected — will migrate on next save"
                     )
                     return {}
 
@@ -298,7 +298,7 @@ class EventsScreen:
             { "events_claimed": { "LeafGreen": { "aurora_ticket": true }, ... } }
         """
         if not self.game_name:
-            print(f"[Events] Cannot save claimed events — no game_name set")
+            print("[Events] Cannot save claimed events — no game_name set")
             return
 
         try:
@@ -318,7 +318,7 @@ class EventsScreen:
             )
             if is_legacy:
                 print(
-                    f"[Events] Replacing legacy flat events_claimed with per-game format"
+                    "[Events] Replacing legacy flat events_claimed with per-game format"
                 )
                 existing = {}
 
@@ -459,7 +459,6 @@ class EventsScreen:
             ctrl.consume_button("A")
             if len(self.available_events) > 0:
                 event_key = self.available_events[self.selected_index]
-                event_info = EVENT_ITEMS[event_key]
 
                 # Only block if already have the ticket item
                 if self._has_item_in_save(event_key):

@@ -207,7 +207,6 @@ def get_pc_pokemon_offset(
     Returns:
         tuple: (section_offset, offset_within_section, pokemon_global_offset)
     """
-    import sys
 
     # Validate inputs
     if box_number < 1 or box_number > 14:
@@ -271,7 +270,7 @@ def get_pc_pokemon_offset(
                     0
                 ]
                 found_sections.append(sid)
-            except:
+            except Exception:
                 found_sections.append(-1)
 
         raise ValueError(
@@ -324,7 +323,7 @@ def write_pokemon_to_pc(
     """
     import sys
 
-    print(f"[SaveWriter] write_pokemon_to_pc called", file=sys.stderr, flush=True)
+    print("[SaveWriter] write_pokemon_to_pc called", file=sys.stderr, flush=True)
     print(
         f"[SaveWriter]   box={box_number}, slot={slot_number}, game_type={game_type}",
         file=sys.stderr,
@@ -380,13 +379,13 @@ def write_pokemon_to_pc(
     written_data = save_data[global_offset : global_offset + POKEMON_PC_SIZE]
     if written_data == pokemon_bytes:
         print(
-            f"[SaveWriter]   ✓ Verified: data written correctly",
+            "[SaveWriter]   ✓ Verified: data written correctly",
             file=sys.stderr,
             flush=True,
         )
     else:
         print(
-            f"[SaveWriter]   ✗ ERROR: Written data doesn't match!",
+            "[SaveWriter]   ✗ ERROR: Written data doesn't match!",
             file=sys.stderr,
             flush=True,
         )
@@ -799,7 +798,7 @@ def _detect_rse_subtype(save_data, section0_offset, section1_offset=None):
 
     if security_key == 0:
         # No security key = Ruby/Sapphire
-        print(f"[GameDetect] Ruby/Sapphire detected (security_key=0)")
+        print("[GameDetect] Ruby/Sapphire detected (security_key=0)")
         return "RS"
 
     # Non-zero value - verify if it's a valid Emerald security key
@@ -826,7 +825,7 @@ def _detect_rse_subtype(save_data, section0_offset, section1_offset=None):
                 return "RS"
 
     # Can't verify - default to RS (safer, avoids wrong offset writes)
-    print(f"[GameDetect] Defaulting to Ruby/Sapphire (couldn't verify security key)")
+    print("[GameDetect] Defaulting to Ruby/Sapphire (couldn't verify security key)")
     return "RS"
 
 
@@ -1292,9 +1291,6 @@ def transfer_pokemon_with_pokedex(
                 game_type=dest_game_type,
             )
             if pokedex_result:
-                pokemon_name = source_pokemon.get("nickname") or source_pokemon.get(
-                    "species_name", "Pokemon"
-                )
                 message += f" (Added #{species} to Pokedex)"
 
     return (success, box_num, slot_num, message)

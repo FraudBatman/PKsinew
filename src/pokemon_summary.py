@@ -238,7 +238,7 @@ def _load_base_stats():
         try:
             with open(db_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            for key, value in data.items():
+            for value in data.items():
                 if isinstance(value, dict) and "id" in value and "stats" in value:
                     _base_stats_cache[value["id"]] = value["stats"]
         except Exception as e:
@@ -513,7 +513,7 @@ class PokemonSummary:
                         self.sprite = pygame.image.load(path).convert_alpha()
                         self.sprite = pygame.transform.scale(self.sprite, (96, 96))
                         return
-                    except:
+                    except Exception:
                         pass
 
         # Method 3: Check if sprite was passed in pokemon data directly
@@ -523,7 +523,7 @@ class PokemonSummary:
                 if isinstance(sprite, pygame.Surface):
                     self.sprite = pygame.transform.scale(sprite, (96, 96))
                     return
-            except:
+            except Exception:
                 pass
 
         # Method 4: Try raw dict's sprite_path if available
@@ -550,7 +550,7 @@ class PokemonSummary:
                             self.sprite = pygame.image.load(path).convert_alpha()
                             self.sprite = pygame.transform.scale(self.sprite, (96, 96))
                             return
-                        except:
+                        except Exception:
                             pass
 
         # Method 5: If all else fails, print debug info

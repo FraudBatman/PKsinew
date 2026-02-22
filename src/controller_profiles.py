@@ -378,15 +378,6 @@ def _convert_sdl_mapping(mapping_str):
         "start": "START",
     }
 
-    # Hat value -> direction mapping (SDL standard)
-    # h0.1=up, h0.2=right, h0.4=down, h0.8=left
-    hat_to_direction = {
-        1: "up",
-        2: "right",
-        4: "down",
-        8: "left",
-    }
-
     # D-pad SDL names
     dpad_sdl_names = {
         "dpup": "up",
@@ -422,7 +413,6 @@ def _convert_sdl_mapping(mapping_str):
 
         # Handle d-pad
         elif key in dpad_sdl_names:
-            has_dpad = True
             direction = dpad_sdl_names[key]
 
             if ptype == "hat":
@@ -803,7 +793,7 @@ def resolve_mapping(controller_name, guid=None, num_buttons=0, num_axes=0, num_h
                 # Validate it has at least A and B
                 if "A" in legacy_map and "B" in legacy_map:
                     print(
-                        f"[ControllerProfiles] Using legacy controller_mapping from settings"
+                        "[ControllerProfiles] Using legacy controller_mapping from settings"
                     )
                     return {
                         "id": "legacy",

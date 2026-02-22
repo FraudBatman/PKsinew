@@ -18,7 +18,7 @@ When a controller is connected, the system will:
 4. Default to Xbox-style layout
 """
 
-from enum import IntEnum, auto
+from enum import IntEnum
 
 import pygame
 
@@ -369,7 +369,6 @@ class ControllerManager:
             num_hats = joy.get_numhats()
             num_buttons = joy.get_numbuttons()
             num_axes = joy.get_numaxes()
-            name_lower = joy.get_name().lower()
         except pygame.error:
             return
 

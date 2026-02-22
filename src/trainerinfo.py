@@ -4,11 +4,9 @@ Displays trainer card information with gamepad navigation
 """
 
 import inspect
-import json
 import os
 
 import pygame
-from pygame import image
 
 import ui_colors
 from config import FONT_PATH
@@ -443,7 +441,6 @@ class TrainerInfoScreen:
         # If sub-modal is open, update it
         if self.sub_modal:
             if hasattr(self.sub_modal, "update"):
-                result = self.sub_modal.update(events)
                 # Check if sub-modal wants to close
                 if hasattr(self.sub_modal, "screen") and hasattr(
                     self.sub_modal.screen, "should_close"
@@ -597,7 +594,7 @@ class TrainerInfoScreen:
             hints = "D-Pad: Navigate  A: Select  B: Back"
             hint_surf = self.font_small.render(hints, True, (120, 120, 120))
             surf.blit(hint_surf, (10, self.h - 15))
-        except:
+        except Exception:
             pass
 
         # Draw sub-modal on top if open

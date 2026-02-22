@@ -11,7 +11,6 @@ import pygame
 
 import ui_colors  # Import module to get dynamic theme colors
 from config import FONT_PATH
-from controller import NavigableList, get_controller
 
 # Try to import save data manager and name lookups
 try:
@@ -69,7 +68,7 @@ def sanitize_for_json(obj):
     else:
         try:
             return str(obj)
-        except:
+        except Exception:
             return None
 
 
@@ -88,7 +87,7 @@ class ExportModal:
             self.font_header = pygame.font.Font(FONT_PATH, 14)
             self.font_text = pygame.font.Font(FONT_PATH, 10)
             self.font_small = pygame.font.Font(FONT_PATH, 8)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 20)
             self.font_text = pygame.font.SysFont(None, 14)
             self.font_small = pygame.font.SysFont(None, 12)
@@ -197,7 +196,7 @@ class ExportModal:
                 if hasattr(manager, "get_all_boxes"):
                     all_boxes = manager.get_all_boxes()
                     if all_boxes:
-                        for box_num, box_pokemon in all_boxes.items():
+                        for box_pokemon in all_boxes.items():
                             if box_pokemon:
                                 for pkmn in box_pokemon:
                                     if pkmn and not pkmn.get("empty"):
@@ -711,7 +710,7 @@ class ExportModal:
             self.status_timer = 180
             print(f"[ExportModal] Exported to {filename}")
         except Exception as e:
-            self.status_message = f"Export failed!"
+            self.status_message = "Export failed!"
             self.status_timer = 180
             print(f"[ExportModal] Export error: {e}")
 
@@ -724,9 +723,7 @@ class ExportModal:
         COLOR_TEXT = ui_colors.COLOR_TEXT
         COLOR_HIGHLIGHT = ui_colors.COLOR_HIGHLIGHT
         COLOR_BUTTON = ui_colors.COLOR_BUTTON
-        COLOR_BUTTON_HOVER = ui_colors.COLOR_BUTTON_HOVER
         COLOR_SUCCESS = ui_colors.COLOR_SUCCESS
-        COLOR_ERROR = ui_colors.COLOR_ERROR
 
         # Background
         pygame.draw.rect(surf, COLOR_BG, (0, 0, self.width, self.height))
@@ -812,7 +809,7 @@ class ExportModal:
         line_height = 14
         max_lines = (rect.height - 16) // line_height
 
-        for i, (line_type, text) in enumerate(content[scroll : scroll + max_lines]):
+        for line_type, text in content[scroll : scroll + max_lines]:
             if line_type == "header":
                 color = COLOR_BORDER
                 text_surf = self.font_text.render(text, True, color)

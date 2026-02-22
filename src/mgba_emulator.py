@@ -5,7 +5,6 @@ import ctypes
 import os
 import platform
 import threading
-import time
 from collections import deque
 from ctypes import (
     CFUNCTYPE,
@@ -962,7 +961,7 @@ class MgbaEmulator:
                         return 1
                     if button_id == RETRO_DEVICE_ID_JOYPAD_DOWN and ly > deadzone:
                         return 1
-            except:
+            except Exception:
                 pass
 
         return 0
@@ -1031,7 +1030,7 @@ class MgbaEmulator:
             if self._audio_thread and self._audio_thread.is_alive():
                 try:
                     self._audio_thread.join(timeout=0.5)
-                except:
+                except Exception:
                     pass
             self._audio_thread = None
 
@@ -1044,7 +1043,7 @@ class MgbaEmulator:
                 if pygame.mixer.get_init():
                     pygame.mixer.quit()
                     pygame.time.wait(50)  # Small delay to let audio system settle
-            except:
+            except Exception:
                 pass
 
             # Try to initialize mixer with multiple attempts
@@ -1116,7 +1115,6 @@ class MgbaEmulator:
         error_count = 0
         chunks_played = 0
         reinit_attempted = False
-        last_play_time = time.time()
         # How many chunks to keep buffered at most before dropping stale audio.
         # At ~32768 Hz with typical ~512-sample batches this is ~60-80ms of audio.
         # Keeping this small prevents latency from accumulating over long sessions.
@@ -1192,7 +1190,6 @@ class MgbaEmulator:
                                     self._audio_channel.queue(sound)
 
                                 chunks_played += 1
-                                last_play_time = time.time()
                                 error_count = 0  # Reset on success
                             except Exception as e:
                                 error_count += 1
@@ -1239,10 +1236,10 @@ class MgbaEmulator:
 
                 if not slot_a_valid and not slot_b_valid:
                     print(
-                        f"[MgbaEmulator] Warning: Save file appears blank (no valid slots)"
+                        "[MgbaEmulator] Warning: Save file appears blank (no valid slots)"
                     )
                     print(
-                        f"[MgbaEmulator] You can start a new game, existing save won't be overwritten"
+                        "[MgbaEmulator] You can start a new game, existing save won't be overwritten"
                     )
                     return False
 
@@ -1405,7 +1402,7 @@ class MgbaEmulator:
                     settings = json.load(f)
                     if "pause_combo" in settings:
                         return settings["pause_combo"]
-        except:
+        except Exception:
             pass
         return default
 
@@ -1433,7 +1430,7 @@ class MgbaEmulator:
                 try:
                     if custom_btn < self._joystick.get_numbuttons():
                         combo_held = self._joystick.get_button(custom_btn)
-                except:
+                except Exception:
                     pass
         else:
             # Button combo
@@ -1466,7 +1463,7 @@ class MgbaEmulator:
                         if btn_idx is not None and btn_idx < num_buttons:
                             if self._joystick.get_button(btn_idx):
                                 buttons_held[btn_name] = True
-                except:
+                except Exception:
                     pass
 
             # Check if all required buttons are held
@@ -1550,7 +1547,7 @@ class MgbaEmulator:
                 if self._audio_thread and self._audio_thread.is_alive():
                     try:
                         self._audio_thread.join(timeout=0.5)
-                    except:
+                    except Exception:
                         pass
                 self._audio_thread = None
 
@@ -1558,7 +1555,7 @@ class MgbaEmulator:
                 try:
                     pygame.mixer.quit()
                     pygame.time.wait(100)
-                except:
+                except Exception:
                     pass
 
                 pygame.mixer.pre_init(
@@ -1622,7 +1619,7 @@ class MgbaEmulator:
             if self._audio_thread and self._audio_thread.is_alive():
                 try:
                     self._audio_thread.join(timeout=0.5)
-                except:
+                except Exception:
                     pass
             self._audio_thread = None
 
@@ -1643,7 +1640,7 @@ class MgbaEmulator:
         if self._audio_thread and self._audio_thread.is_alive():
             try:
                 self._audio_thread.join(timeout=1.0)
-            except:
+            except Exception:
                 pass
 
         # Save and unload game

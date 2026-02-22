@@ -10,7 +10,7 @@ import pygame
 
 import ui_colors
 from config import FONT_PATH
-from controller import NavigableList, get_controller
+from controller import get_controller
 
 try:
     from theme_manager import (
@@ -55,7 +55,7 @@ class ThemesScreen:
             self.font_header = pygame.font.Font(FONT_PATH, 18)
             self.font_text = pygame.font.Font(FONT_PATH, 12)
             self.font_small = pygame.font.Font(FONT_PATH, 10)
-        except:
+        except Exception:
             self.font_header = pygame.font.SysFont(None, 24)
             self.font_text = pygame.font.SysFont(None, 18)
             self.font_small = pygame.font.SysFont(None, 14)
@@ -484,7 +484,7 @@ class ThemesScreen:
                 ("Button", preview_button),
             ]
 
-            for j, (name, color) in enumerate(colors_to_show):
+            for j, color in enumerate(colors_to_show):
                 sx = preview_x + 15 + j * (swatch_size + swatch_gap + 2)
                 swatch_rect = pygame.Rect(sx, swatch_y, swatch_size, swatch_size)
                 pygame.draw.rect(surf, color, swatch_rect)

@@ -102,7 +102,7 @@ ITEM_SPRITES = {
     "10km_egg": "10km-egg.png",
 }
 
-for key, filename in ITEM_SPRITES.items():
+for _, filename in ITEM_SPRITES.items():
     url = f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/{filename}"
     dest_path = os.path.join(ITEMS_DIR, filename)
     if download_file(url, dest_path):

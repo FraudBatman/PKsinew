@@ -422,7 +422,7 @@ def draw_controller_hint(surf, text, x, y, font=None):
     if font is None:
         try:
             font = pygame.font.Font(FONT_PATH, 8)
-        except:
+        except Exception:
             font = pygame.font.SysFont(None, 12)
 
     hint_surf = font.render(text, True, (120, 120, 120))

@@ -14,7 +14,7 @@ import os
 import shutil
 from datetime import datetime
 
-from config import EXT_DIR, SAVES_DIR
+from config import EXT_DIR
 
 # Storage paths
 STORAGE_DIR = os.path.join(EXT_DIR, "saves", "sinew")
@@ -202,7 +202,7 @@ class SinewStorage:
             if os.path.exists(TEMP_FILE):
                 try:
                     os.remove(TEMP_FILE)
-                except:
+                except Exception:
                     pass
             return False
 
