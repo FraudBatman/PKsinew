@@ -29,10 +29,13 @@ PARSER_DIR = os.path.join(BASE_DIR, "parser")
 
 # External (user-accessible) directories and files
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    EXT_DIR = os.path.dirname(sys.executable)
+    appimage_path = os.environ.get("APPIMAGE")
+    if appimage_path:
+        # Use the directory of the AppImage
+        EXT_DIR = os.path.dirname(appimage_path)
+    else:
+        EXT_DIR = os.path.dirname(sys.executable)
 else:
-    # In dev mode, use ../dist as EXT_DIR for external files
-    # This is where the executable would output to anyway
     EXT_DIR = os.path.abspath(os.path.join(BASE_DIR, "../dist"))
 
 DATA_DIR = os.path.join(EXT_DIR, "data")
