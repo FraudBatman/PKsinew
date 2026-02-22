@@ -14,8 +14,15 @@ import shutil
 import base64
 from datetime import datetime
 
-# Storage paths
-STORAGE_DIR = "sinew"
+# Storage paths — anchor to EXT_DIR so the folder ends up next to the exe
+# when frozen by PyInstaller, rather than inside the temp extraction folder.
+try:
+    import config as _config
+    _base = getattr(_config, 'EXT_DIR', getattr(_config, 'BASE_DIR', os.path.dirname(os.path.abspath(__file__))))
+except ImportError:
+    _base = os.path.dirname(os.path.abspath(__file__))
+
+STORAGE_DIR = os.path.join(_base, "sinew")
 STORAGE_FILE = os.path.join(STORAGE_DIR, "sinew_storage.json")
 BACKUP_FILE = os.path.join(STORAGE_DIR, "sinew_storage_backup.json")
 TEMP_FILE = os.path.join(STORAGE_DIR, "sinew_storage_temp.json")
