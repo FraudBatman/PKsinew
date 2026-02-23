@@ -213,7 +213,7 @@ if __name__ == "__main__":
             break
         generate_game_wallpaper(game, colors)
 
-    if not (globals().get("ui_instance") and ui_instance.cancel_requested):
+    if not ((ui := globals().get("ui_instance")) and ui.cancel_requested):
         generate_sinew_wallpaper()
     print("")
     print("All wallpapers generated!")
