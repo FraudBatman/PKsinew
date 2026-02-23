@@ -58,31 +58,22 @@ jobs:
           apt-get update
           apt-get install -y wget file squashfs-tools
           cd /work
-
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           ./appimagetool-x86_64.AppImage --appimage-extract
-
           mkdir -p AppDir/usr/bin
           cp dist/PKsinew AppDir/usr/bin/PKsinew
-
           if [ -f "assets/pksinew.png" ]; then
             cp assets/pksinew.png AppDir/pksinew.png
           fi
-
           printf "[Desktop Entry]\nName=PKsinew\nExec=PKsinew\nIcon=pksinew\nType=Application\nCategories=Utility;\nTerminal=true\n" > AppDir/pksinew.desktop
-
           printf "#!/bin/sh\nHERE=\"\$(dirname \"\$(readlink -f \"\$0\")\")\"\ncd \"\$HERE\"\nexec \"\$HERE/usr/bin/PKsinew\" \"\$@\"\n" > AppDir/AppRun
-
           chmod +x AppDir/AppRun
-
           ./squashfs-root/AppRun AppDir dist/PKsinew-Linux_x86-64.AppImage
-
           chmod +x dist/PKsinew dist/PKsinew-Linux_x86-64.AppImage
           rm dist/PKsinew
           '
 
-      # trunk-ignore(checkov/CKV2_GHA_1)
       - name: Set permissions
         if: runner.os != 'Windows' && matrix.os != 'ubuntu-latest'
         run: |
@@ -93,3 +84,46 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifact structure
+        run: |
+          mkdir release-files
+          find artifacts -type f -exec cp {} release-files/ \;
+
+      - name: Read changelog
+        id: changelog
+        run: |
+          CHANGELOG=""
+          if [ -f release-files/changelog.txt ]; then
+            CHANGELOG=$(cat release-files/changelog.txt)
+          elif [ -f dist/changelog.txt ]; then
+            CHANGELOG=$(cat dist/changelog.txt)
+          fi
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "Warning: changelog.txt not found or empty. Release will have no body."
+            CHANGELOG="No changelog available for this release."
+          fi
+
+          echo "::set-output name=body::$CHANGELOG"
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-files/*
+          body: ${{ steps.changelog.outputs.body }}
+          prerelease: false   # ensures this release is marked as latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
