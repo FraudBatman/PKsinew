@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import time
+import builtins
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
@@ -3227,6 +3228,7 @@ class GameScreen:
 
         # Load the ROM
         self.emulator.load_rom(rom_path, sav_path)
+        builtins.SINEW_EMULATOR = self.emulator
         self.emulator_active = True
         self._emulator_pause_combo_released = True
 
@@ -3241,6 +3243,7 @@ class GameScreen:
 
     def _stop_emulator(self):
         """Stop and cleanup the integrated mGBA emulator"""
+        builtins.SINEW_EMULATOR = None
         if self.emulator:
             # Unpause first in case it was paused
             if self.emulator.paused:

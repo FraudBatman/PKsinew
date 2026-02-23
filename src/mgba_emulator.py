@@ -444,6 +444,7 @@ class MgbaEmulator:
         # State
         self.loaded = False
         self.paused = False
+        self._fast_forward_multiplier = 1  # 1 = normal speed; 2-10 = fast-forward
         self.rom_path = None
         self.save_path = None
         self.sram_loaded_valid = False  # Track if we loaded a valid save
@@ -489,6 +490,9 @@ class MgbaEmulator:
 
         # Load pause combo setting
         self._pause_combo_setting = self._load_pause_combo_setting()
+
+        # Load fast-forward speed (applied when toggle is ON at launch)
+        self._load_fast_forward_setting()
 
         # Keep callbacks alive
         self._keep_alive = []
@@ -1313,12 +1317,44 @@ class MgbaEmulator:
             return False
 
     def run_frame(self):
-        """Run one frame of emulation."""
+        """Run one frame of emulation (multiplied for fast-forward)."""
         if not self.loaded or self.paused:
             return
 
-        self.lib.retro_run()
+        multiplier = self._fast_forward_multiplier
+        for i in range(multiplier):
+            self.lib.retro_run()
+        # Process video once per display frame regardless of multiplier
         self._process_video()
+
+    def set_fast_forward(self, multiplier):
+        """Set fast-forward multiplier. Pass 1 to return to normal speed."""
+        self._fast_forward_multiplier = max(1, int(multiplier))
+        label = "Off" if self._fast_forward_multiplier == 1 else f"{self._fast_forward_multiplier}x"
+        print(f"[MgbaEmulator] Fast-forward: {label}")
+
+    def _load_fast_forward_setting(self):
+        """Load and apply saved fast-forward state from sinew_settings.json on startup."""
+        import json
+
+        if CONFIG_AVAILABLE and hasattr(config, "SETTINGS_FILE"):
+            settings_file = config.SETTINGS_FILE
+        elif CONFIG_AVAILABLE and hasattr(config, "BASE_DIR"):
+            settings_file = os.path.join(config.BASE_DIR, "sinew_settings.json")
+        else:
+            settings_file = "sinew_settings.json"
+
+        try:
+            if os.path.exists(settings_file):
+                with open(settings_file, "r") as f:
+                    data = json.load(f)
+                enabled = data.get("mgba_fastforward_enabled", False)
+                speed = data.get("mgba_fastforward_speed", 2)
+                self._fast_forward_multiplier = max(1, int(speed)) if enabled else 1
+                if self._fast_forward_multiplier > 1:
+                    print(f"[MgbaEmulator] Fast-forward loaded: {self._fast_forward_multiplier}x")
+        except Exception as e:
+            print(f"[MgbaEmulator] Could not load fast-forward setting: {e}")
 
     def _process_video(self):
         """Process video frame from core."""

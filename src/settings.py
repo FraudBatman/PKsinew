@@ -1109,7 +1109,7 @@ class MainSetup:
         self.font_small = pygame.font.Font(FONT_PATH, 10)
 
         # Tab definitions
-        self.tabs = ["General", "Controller", "Keyboard", "Info"]
+        self.tabs = ["General", "Input", "mGBA", "Info"]
         self.selected_tab = 0
 
         # Track if we're navigating tabs or options
@@ -1123,15 +1123,27 @@ class MainSetup:
                 {"name": "Themes", "type": "button"},
                 {"name": "Build/Rebuild Pokemon DB", "type": "button"},
             ],
-            "Controller": [
+            "Input": [
                 {"name": "Swap A/B Buttons", "type": "toggle", "value": False},
                 {"name": "Pause/Menu Combo", "type": "button"},
                 {"name": "Map Buttons", "type": "button"},
                 {"name": "Reset to Default", "type": "button"},
-            ],
-            "Keyboard": [
                 {"name": "Map Keyboard Keys", "type": "button"},
                 {"name": "Reset Keyboard Defaults", "type": "button"},
+            ],
+            "mGBA": [
+                {
+                    "name": "Fast-Forward",
+                    "type": "toggle",
+                    "value": False,
+                },
+                {
+                    "name": "Fast-Forward Speed",
+                    "type": "slider",
+                    "slider_index": 0,
+                    "labels": ["2x", "3x", "4x", "5x", "6x", "7x", "8x", "9x", "10x"],
+                    "speed_values": [2, 3, 4, 5, 6, 7, 8, 9, 10],
+                },
             ],
             "Info": [
                 {"name": "Sinew Version", "type": "label", "value": "v1.3.3"},
@@ -1177,10 +1189,18 @@ class MainSetup:
             elif opt["name"] == "Fullscreen":
                 opt["value"] = settings.get("fullscreen", False)
 
-        # Load Controller tab settings
-        for opt in self.tab_options["Controller"]:
+        # Load Input tab settings
+        for opt in self.tab_options["Input"]:
             if opt["name"] == "Swap A/B Buttons":
                 opt["value"] = settings.get("swap_ab", False)
+
+        # Load mGBA tab settings
+        for opt in self.tab_options["mGBA"]:
+            if opt["name"] == "Fast-Forward":
+                opt["value"] = settings.get("mgba_fastforward_enabled", False)
+            elif opt["name"] == "Fast-Forward Speed":
+                saved_idx = settings.get("mgba_fastforward_index", 0)
+                opt["slider_index"] = max(0, min(saved_idx, len(opt["speed_values"]) - 1))
 
         # Load Dev tab settings
         for opt in self.tab_options["Dev"]:
@@ -1279,6 +1299,14 @@ class MainSetup:
             idx = choices.index(option["value"])
             option["value"] = choices[(idx + direction) % len(choices)]
             return True
+        elif option["type"] == "slider":
+            old_idx = option.get("slider_index", 0)
+            max_idx = len(option["speed_values"]) - 1
+            new_idx = max(0, min(old_idx + direction, max_idx))
+            option["slider_index"] = new_idx
+            # Save the new speed index whenever it changes
+            self._save_mgba_fastforward_settings()
+            return True
         return False
 
     def _handle_toggle_callback(self, name, value):
@@ -1302,6 +1330,53 @@ class MainSetup:
                 self._status_msg(f"External Emulator: {status}")
             except Exception as e:
                 print(f"[Settings] Failed to save external emulator setting: {e}")
+        elif name == "Fast-Forward":
+            self._save_mgba_fastforward_settings()
+            self._apply_fastforward_to_emulator()
+
+    def _save_mgba_fastforward_settings(self):
+        """Persist fast-forward toggle + speed index to sinew_settings.json."""
+        enabled = False
+        speed_index = 0
+        speed_values = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        for opt in self.tab_options.get("mGBA", []):
+            if opt["name"] == "Fast-Forward":
+                enabled = opt.get("value", False)
+            elif opt["name"] == "Fast-Forward Speed":
+                speed_index = opt.get("slider_index", 0)
+                speed_values = opt.get("speed_values", speed_values)
+        multiplier = speed_values[speed_index] if enabled else 1
+        try:
+            s = load_sinew_settings()
+            s["mgba_fastforward_enabled"] = enabled
+            s["mgba_fastforward_index"] = speed_index
+            s["mgba_fastforward_speed"] = speed_values[speed_index]
+            save_sinew_settings(s)
+            print(f"[Settings] Fast-Forward: {'ON' if enabled else 'OFF'} @ {speed_values[speed_index]}x")
+        except Exception as e:
+            print(f"[Settings] Failed to save fast-forward settings: {e}")
+
+    def _apply_fastforward_to_emulator(self):
+        """Push the current fast-forward state to the running emulator via builtins."""
+        enabled = False
+        speed_index = 0
+        speed_values = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        for opt in self.tab_options.get("mGBA", []):
+            if opt["name"] == "Fast-Forward":
+                enabled = opt.get("value", False)
+            elif opt["name"] == "Fast-Forward Speed":
+                speed_index = opt.get("slider_index", 0)
+                speed_values = opt.get("speed_values", speed_values)
+        multiplier = speed_values[speed_index] if enabled else 1
+        try:
+            import builtins
+            emu = getattr(builtins, "SINEW_EMULATOR", None)
+            if emu is not None and hasattr(emu, "set_fast_forward"):
+                emu.set_fast_forward(multiplier)
+                label = f"{multiplier}x" if enabled else "Off"
+                print(f"[Settings] Applied fast-forward to emulator: {label}")
+        except Exception as e:
+            print(f"[Settings] Could not apply fast-forward to emulator: {e}")
 
     def _activate_option(self):
         """Activate/select current option"""
@@ -2385,6 +2460,33 @@ class MainSetup:
             val_surf = self.font_small.render(path, True, ui_colors.COLOR_TEXT)
             val_rect = val_surf.get_rect(right=right_x, centery=center_y)
             surf.blit(val_surf, val_rect)
+
+        elif opt_type == "slider":
+            slider_index = option.get("slider_index", 0)
+            labels = option.get("labels", [])
+            max_idx = max(len(labels) - 1, 1)
+            label_text = labels[slider_index] if labels else str(slider_index)
+            arrows_color = ui_colors.COLOR_HIGHLIGHT if is_selected else ui_colors.COLOR_BUTTON
+
+            # Track bar
+            bar_width = 72
+            bar_x = right_x - bar_width - 32
+            bar_y = center_y - 4
+            bar_h = 8
+            pygame.draw.rect(surf, ui_colors.COLOR_HEADER,
+                             pygame.Rect(bar_x, bar_y, bar_width, bar_h), border_radius=4)
+            # Fill
+            fill_w = int(bar_width * slider_index / max_idx)
+            if fill_w > 0:
+                fill_color = ui_colors.COLOR_HIGHLIGHT if is_selected else ui_colors.COLOR_BORDER
+                pygame.draw.rect(surf, fill_color,
+                                 pygame.Rect(bar_x, bar_y, fill_w, bar_h), border_radius=4)
+            # Arrows
+            surf.blit(self.font_text.render("<", True, arrows_color), (bar_x - 14, center_y - 7))
+            surf.blit(self.font_text.render(">", True, arrows_color), (bar_x + bar_width + 4, center_y - 7))
+            # Label
+            lbl = self.font_text.render(label_text, True, ui_colors.COLOR_TEXT)
+            surf.blit(lbl, lbl.get_rect(left=bar_x + bar_width + 18, centery=center_y))
 
         elif opt_type == "button":
             # Show press indicator when selected
