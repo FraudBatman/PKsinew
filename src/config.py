@@ -2,14 +2,12 @@
 Sinew Configuration
 All paths, constants, and configuration settings
 
-NOTE: All paths are absolute and should be constructed using os.path.join for cross-platform compatibility. 
+NOTE: All paths are absolute and should be constructed using os.path.join for cross-platform compatibility.
 """
 
-
 import os
-import sys
 import platform
-
+import sys
 
 # ===== Display Settings =====
 WINDOW_WIDTH = 480
@@ -29,10 +27,13 @@ PARSER_DIR = os.path.join(BASE_DIR, "parser")
 
 # External (user-accessible) directories and files
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-    EXT_DIR = os.path.dirname(sys.executable)
+    appimage_path = os.environ.get("APPIMAGE")
+    if appimage_path:
+        # Use the directory of the AppImage
+        EXT_DIR = os.path.dirname(appimage_path)
+    else:
+        EXT_DIR = os.path.dirname(sys.executable)
 else:
-    # In dev mode, use ../dist as EXT_DIR for external files
-    # This is where the executable would output to anyway
     EXT_DIR = os.path.abspath(os.path.join(BASE_DIR, "../dist"))
 
 DATA_DIR = os.path.join(EXT_DIR, "data")
@@ -70,47 +71,48 @@ POKEMON_DB_PATH = os.path.join(DATA_DIR, "pokemon_db.json")
 # Font Paths
 FONT_PATH = os.path.join(FONTS_DIR, "Pokemon_GB.ttf")
 FONT_SOLID_PATH = os.path.join(FONTS_DIR, "Pokemon Solid.ttf")
-
 # ===== Emulator Paths =====
 # Platform-specific core detection
-import platform as _platform
+
 
 def get_platform_info():
     """Get platform and architecture info for core selection."""
-    system = _platform.system().lower()
-    machine = _platform.machine().lower()
-    
+    system = platform.system().lower()
+    machine = platform.machine().lower()
     # Determine OS name
-    if system == 'windows':
-        os_name = 'windows'
-        ext = '.dll'
-    elif system == 'darwin':
-        os_name = 'macos'
-        ext = '.dylib'
+    if system == "windows":
+        os_name = "windows"
+        ext = ".dll"
+    elif system == "darwin":
+        os_name = "macos"
+        ext = ".dylib"
     else:  # Linux and others
-        os_name = 'linux'
-        ext = '.so'
-    
+        os_name = "linux"
+        ext = ".so"
+
     # Determine architecture
-    if machine in ('amd64', 'x86_64'):
-        arch_name = 'x64'
-    elif machine in ('i386', 'i686', 'x86'):
-        arch_name = 'x86'
-    elif machine in ('aarch64', 'arm64'):
-        arch_name = 'arm64'
-    elif machine in ('armv7l', 'armv6l', 'arm'):
-        arch_name = 'arm32'
+    if machine in ("amd64", "x86_64"):
+        arch_name = "x64"
+    elif machine in ("i386", "i686", "x86"):
+        arch_name = "x86"
+    elif machine in ("aarch64", "arm64"):
+        arch_name = "arm64"
+    elif machine in ("armv7l", "armv6l", "arm"):
+        arch_name = "arm32"
     else:
         # Default fallback based on pointer size
         import struct
-        arch_name = 'x64' if struct.calcsize('P') == 8 else 'x86'
-    
+
+        arch_name = "x64" if struct.calcsize("P") == 8 else "x86"
+
     return os_name, arch_name, ext
+
 
 def get_core_filename():
     """Get the platform-specific mGBA core filename."""
     os_name, arch_name, ext = get_platform_info()
     return f"mgba_libretro_{os_name}_{arch_name}{ext}"
+
 
 MGBA_CORE_PATH = os.path.join(CORES_DIR, get_core_filename())
 
@@ -143,7 +145,7 @@ SAVE_PATHS = {
 
 # ===== Parser Settings =====
 PARSER_LOCATIONS = [
-    os.path.join(BASE_DIR, 'parser'),
+    os.path.join(BASE_DIR, "parser"),
 ]
 
 # ===== Animation Settings =====
@@ -173,17 +175,17 @@ def get_rom_path(game_name):
 def get_sprite_path(species, shiny=False, sprite_type="gen3"):
     """
     Get sprite path for a Pokemon species.
-    
+
     Args:
         species: National dex number
         shiny: Whether to get shiny sprite
         sprite_type: "gen3", "showdown", or "gen8"
-        
+
     Returns:
         str: Absolute path to sprite file
     """
     species_str = str(species).zfill(3)
-    
+
     if sprite_type == "gen3":
         folder = GEN3_SHINY_DIR if shiny else GEN3_NORMAL_DIR
         return os.path.join(folder, f"{species_str}.png")
@@ -199,10 +201,10 @@ def get_sprite_path(species, shiny=False, sprite_type="gen3"):
 def get_title_gif_path(game_name):
     """
     Get title screen GIF path for a game.
-    
+
     Args:
         game_name: Name of the game (e.g., "Ruby", "Emerald")
-        
+
     Returns:
         str: Absolute path to title GIF
     """
@@ -212,10 +214,10 @@ def get_title_gif_path(game_name):
 def get_egg_sprite_path(sprite_type="gen3"):
     """
     Get egg sprite path.
-    
+
     Args:
         sprite_type: "gen3" or "showdown"
-        
+
     Returns:
         str: Absolute path to egg sprite
     """

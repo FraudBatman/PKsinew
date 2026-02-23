@@ -1,13 +1,18 @@
-name: Build Executables with PyInstaller
+name: Build Executables
 
 on:
   push:
-    branches: [ main, pyinstaller ]
+    branches:
+      - "**"
+    tags:
+      - v*
   pull_request:
-    branches: [ main, pyinstaller ]
+    branches:
+      - "**"
 
 jobs:
   build:
+    name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,7 +27,6 @@ jobs:
           - os: ubuntu-22.04-arm
             artifact_name: PKsinew-Linux_aarch64
 
-    name: Build on ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,8 +34,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: pip
 
       - name: Install dependencies
         run: |
@@ -43,9 +47,46 @@ jobs:
         run: |
           pyinstaller --clean PKsinew.spec
 
+      - name: Build AppImage (containerized 20.04)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            ubuntu:20.04 \
+            bash -c '
+          set -e
+          apt-get update
+          apt-get install -y wget file squashfs-tools
+          cd /work
+
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage --appimage-extract
+
+          mkdir -p AppDir/usr/bin
+          cp dist/PKsinew AppDir/usr/bin/PKsinew
+
+          if [ -f "assets/pksinew.png" ]; then
+            cp assets/pksinew.png AppDir/pksinew.png
+          fi
+
+          printf "[Desktop Entry]\nName=PKsinew\nExec=PKsinew\nIcon=pksinew\nType=Application\nCategories=Utility;\nTerminal=true\n" > AppDir/pksinew.desktop
+
+          printf "#!/bin/sh\nHERE=\"\$(dirname \"\$(readlink -f \"\$0\")\")\"\ncd \"\$HERE\"\nexec \"\$HERE/usr/bin/PKsinew\" \"\$@\"\n" > AppDir/AppRun
+
+          chmod +x AppDir/AppRun
+
+          ./squashfs-root/AppRun AppDir dist/PKsinew-Linux_x86-64.AppImage
+
+          chmod +x dist/PKsinew dist/PKsinew-Linux_x86-64.AppImage
+          rm dist/PKsinew
+          '
+
+      # trunk-ignore(checkov/CKV2_GHA_1)
       - name: Set permissions
-        if: runner.os != 'Windows'
-        run: chmod +x dist/*
+        if: runner.os != 'Windows' && matrix.os != 'ubuntu-latest'
+        run: |
+          find dist -type f -exec chmod 755 {} \;
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
