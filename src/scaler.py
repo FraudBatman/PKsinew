@@ -147,62 +147,116 @@ class Scaler:
     def _create_window(self):
         """Create or recreate the display window"""
         if self.is_handheld:
-            self._create_window_handheld()
-        elif self.use_hardware_scaling:
+            try:
+                self._create_window_handheld()
+                return
+            except pygame.error as e:
+                print(f"[Scaler] Handheld window creation failed: {e}")
+                print("[Scaler] Falling back to standard software scaling")
+                # Re-init display in case handheld attempts left it in a bad state
+                try:
+                    pygame.display.quit()
+                except Exception:
+                    pass
+                # Clear any driver override we may have set
+                if "SDL_VIDEODRIVER" in os.environ:
+                    del os.environ["SDL_VIDEODRIVER"]
+                pygame.display.init()
+                self.is_handheld = False
+                self.use_hardware_scaling = False
+                self._create_window_software()
+                return
+
+        if self.use_hardware_scaling:
             self._create_window_hardware()
         else:
             self._create_window_software()
 
     def _create_window_handheld(self):
         """
-        Create window for embedded Linux handhelds (KMSDRM/fbdev).
+        Create window for embedded Linux handhelds (Powkiddy X55, etc.).
 
         On these devices we always go fullscreen at the native screen
         resolution and do our own software scaling from the virtual
         surface.  We avoid pygame.SCALED and pygame.RESIZABLE which
-        can fail or behave unpredictably on KMSDRM.
+        can fail or behave unpredictably on KMSDRM/fbdev.
+
+        We try multiple SDL video drivers in order since the bundled
+        SDL2 (e.g. from PyInstaller) may not have been compiled with
+        KMSDRM support.
         """
-        # Try to get the native screen resolution
-        try:
-            display_info = pygame.display.Info()
-            native_w = display_info.current_w
-            native_h = display_info.current_h
-            # Sanity check — Info() can return 0 or -1 before a mode is set
-            if native_w <= 0 or native_h <= 0:
-                native_w, native_h = 1280, 720  # X55 default
-        except Exception:
-            native_w, native_h = 1280, 720
+        # Candidate video drivers to try, in preference order.
+        # The user's SDL_VIDEODRIVER env var gets first priority if set.
+        drivers_to_try = []
+        env_driver = os.environ.get("SDL_VIDEODRIVER", "").strip()
+        if env_driver:
+            drivers_to_try.append(env_driver)
+        drivers_to_try += ["kmsdrm", "directfb", "fbcon", "fbdev", "x11", "wayland", ""]
+        # "" means "let SDL pick whatever it can"
 
-        # Try fullscreen with HWSURFACE + DOUBLEBUF first (best for KMSDRM)
-        flags = pygame.FULLSCREEN
-        try:
-            # Attempt hardware-accelerated fullscreen
-            self.window = pygame.display.set_mode(
-                (native_w, native_h),
-                flags | pygame.HWSURFACE | pygame.DOUBLEBUF,
-            )
-        except pygame.error:
+        last_error = None
+        for driver in drivers_to_try:
             try:
-                # Fall back to basic fullscreen
-                self.window = pygame.display.set_mode((native_w, native_h), flags)
-            except pygame.error:
-                # Last resort: try setting mode at 0,0 to let SDL pick
-                self.window = pygame.display.set_mode((0, 0), flags)
+                # Quit any existing display so we can re-init with a new driver
+                try:
+                    pygame.display.quit()
+                except Exception:
+                    pass
 
-        # Read back actual size
-        actual_size = self.window.get_size()
-        self.window_width = actual_size[0] if actual_size[0] > 0 else native_w
-        self.window_height = actual_size[1] if actual_size[1] > 0 else native_h
+                if driver:
+                    os.environ["SDL_VIDEODRIVER"] = driver
+                elif "SDL_VIDEODRIVER" in os.environ:
+                    del os.environ["SDL_VIDEODRIVER"]
 
-        # Create the virtual surface for game rendering
-        self.virtual_surface = pygame.Surface(
-            (self.virtual_width, self.virtual_height)
-        )
+                pygame.display.init()
 
-        pygame.display.set_caption("Sinew")
-        print(
-            f"[Scaler] Handheld mode: {self.virtual_width}x{self.virtual_height} -> "
-            f"{self.window_width}x{self.window_height}"
+                # Try to get the native screen resolution
+                display_info = pygame.display.Info()
+                native_w = display_info.current_w
+                native_h = display_info.current_h
+                if native_w <= 0 or native_h <= 0:
+                    native_w, native_h = 1280, 720  # X55 default
+
+                # Try fullscreen with HWSURFACE + DOUBLEBUF first
+                try:
+                    self.window = pygame.display.set_mode(
+                        (native_w, native_h),
+                        pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF,
+                    )
+                except pygame.error:
+                    # Fall back to basic fullscreen
+                    self.window = pygame.display.set_mode(
+                        (native_w, native_h), pygame.FULLSCREEN
+                    )
+
+                # If we got here, it worked
+                actual_size = self.window.get_size()
+                self.window_width = actual_size[0] if actual_size[0] > 0 else native_w
+                self.window_height = actual_size[1] if actual_size[1] > 0 else native_h
+
+                self.virtual_surface = pygame.Surface(
+                    (self.virtual_width, self.virtual_height)
+                )
+
+                used_driver = driver or "auto"
+                pygame.display.set_caption("Sinew")
+                print(
+                    f"[Scaler] Handheld mode ({used_driver}): "
+                    f"{self.virtual_width}x{self.virtual_height} -> "
+                    f"{self.window_width}x{self.window_height}"
+                )
+                return  # Success
+
+            except pygame.error as e:
+                last_error = e
+                driver_label = driver or "auto"
+                print(f"[Scaler] Video driver '{driver_label}' failed: {e}")
+                continue
+
+        # All drivers failed — raise the last error so the caller
+        # can fall back to the normal software path
+        raise pygame.error(
+            f"No usable video driver found for handheld. Last error: {last_error}"
         )
 
     def _create_window_hardware(self):
