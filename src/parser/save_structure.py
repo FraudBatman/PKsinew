@@ -196,15 +196,12 @@ def detect_game_type(data, section_offsets):
         return "INVALID", "Invalid/Blank Save"
 
     section0_offset = section_offsets.get(0, 0)
-    section1_offset = section_offsets.get(1, 0)
 
     # Check for missing sections
     if 0 not in section_offsets:
         print("[GameDetect] Warning: Section 0 not found!")
-    if 1 not in section_offsets:
-        print("[GameDetect] Warning: Section 1 not found!")
 
-    # Check the value at 0x00AC in Section 0
+    # Check the value at 0x0AC in Section 0
     # This is known as the Game Code on Bulbapedia
     # in FRLG, this value is always 1
     # in RSE, this is either the E security key, or RS battle tower data (0 if no battle tower)
@@ -222,17 +219,17 @@ def detect_game_type(data, section_offsets):
         print ("[GameDetect] Ruby/Sapphire detected: Game Code value was 0")
         return "RS", "Ruby/Sapphire"
 
-    #past byte 890 (up till the section footer) is only used by Emerald
+    #past byte 0x890 (up till the section footer) is only used by Emerald
     #use that to distinguish RS v. E
 
     emerald_only_data = data[section0_offset + 0x890 : section0_offset + 0xF2C]
 
     for byte in emerald_only_data : 
         if byte != 0:
-            print("[GameDetect] Emerald detected, trainer data past 890 bytes.")
+            print("[GameDetect] Emerald detected, trainer data past 0x890.")
             return "E", "Emerald"
         
-    print("[GameDetect] Ruby/Sapphire detected: no trainer data past 890 bytes")
+    print("[GameDetect] Ruby/Sapphire detected: no trainer data past 0x890")
     return "RS", "Ruby/Sapphire"
 
 
