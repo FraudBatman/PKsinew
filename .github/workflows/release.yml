@@ -114,14 +114,12 @@ create-release:
 
         # Extract section from CHANGELOG.md up to the next ===== separator
         awk "/^${VERSION}$/,/^=+$/ " CHANGELOG.md > release_notes.txt
-
-        # Remove trailing ===== if present
         sed -i '${/^=\\+$/d;}' release_notes.txt
 
-        # Write to GitHub Actions output safely
-        echo "body<<EOF" >> $GITHUB_OUTPUT
+        # Use a safe, GitHub-approved way to write multiline outputs
+        echo "body<<'END_OF_BODY'" >> $GITHUB_OUTPUT
         cat release_notes.txt >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        echo "END_OF_BODY" >> $GITHUB_OUTPUT
 
     - name: Create and push tag (if not exists)
       run: |
