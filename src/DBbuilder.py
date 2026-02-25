@@ -13,23 +13,13 @@ from typing import Dict, List, Optional
 
 import requests
 
-try:
-    import config
-except ImportError as e:
-    print(f"ERROR: Could not import config: {e}", flush=True)
-    import sys
-
-    print("sys.path:", sys.path, flush=True)
-    exit(1)
+from config import SPRITES_DIR, GEN3_NORMAL_DIR, GEN3_SHINY_DIR, POKEMON_DB_PATH
 
 # --------- Config ----------
 MAX_POKEMON = 386  # up to Emerald
-SPRITES_DIR = os.path.join(config.DATA_DIR, "sprites")
-GEN3_NORMAL_DIR = os.path.join(SPRITES_DIR, "gen3", "normal")
-GEN3_SHINY_DIR = os.path.join(SPRITES_DIR, "gen3", "shiny")
 ITEMS_DIR = os.path.join(SPRITES_DIR, "items")
 
-DB_PATH = os.path.join(config.DATA_DIR, "pokemon_db.json")
+DB_PATH = POKEMON_DB_PATH
 
 # Create directories
 for d in (GEN3_NORMAL_DIR, GEN3_SHINY_DIR, ITEMS_DIR):
@@ -120,8 +110,7 @@ else:
 # Ensure item sprites are in DB
 if "items" not in pokemon_db:
     pokemon_db["items"] = {
-        # HARDCODED PATH, CHANGE!
-        key: f"sprites/items/{filename}" for key, filename in ITEM_SPRITES.items()
+        key: os.path.join(ITEMS_DIR, filename) for key, filename in ITEM_SPRITES.items()
     }
 
 # -------------------------
@@ -243,14 +232,12 @@ for i in range(1, MAX_POKEMON + 1):
             "evolution_chain": evolution_chain_info,
             "sprites": {
                 "gen3_normal": (
-                    # HARDCODED PATH, CHANGE!
-                    f"sprites/gen3/normal/{pid_str}.png"
+                    gen3_normal_path
                     if os.path.exists(gen3_normal_path)
                     else None
                 ),
                 "gen3_shiny": (
-                    # HARDCODED PATH, CHANGE!
-                    f"sprites/gen3/shiny/{pid_str}.png"
+                    gen3_shiny_path
                     if os.path.exists(gen3_shiny_path)
                     else None
                 ),
