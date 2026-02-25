@@ -648,11 +648,9 @@ def _get_settings_path():
 
         if hasattr(cfg, "SETTINGS_FILE"):
             return cfg.SETTINGS_FILE
-        elif hasattr(cfg, "BASE_DIR"):
-            return os.path.join(cfg.BASE_DIR, "sinew_settings.json")
     except ImportError:
         pass
-    return "sinew_settings.json"
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dist", "saves", "sinew", "sinew_settings.json")
 
 
 def load_saved_profile(controller_name, guid=None):

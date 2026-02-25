@@ -710,7 +710,8 @@ class GameScreen:
     INPUT_COOLDOWN = 0.25
 
     def __init__(
-        self, width, height, font, back_callback=None, controller=None, scaler=None
+        self, width, height, font, back_callback=None, controller=None, scaler=None,
+        screen=None
     ):
         self.width = width
         self.height = height
@@ -718,6 +719,7 @@ class GameScreen:
         self.back_callback = back_callback
         self.controller = controller
         self.scaler = scaler  # Optional scaler for resolution scaling
+        self._loading_screen = screen  # Surface for startup loading screen
 
         # Load settings
         self.settings = load_settings()
@@ -807,17 +809,22 @@ class GameScreen:
         # Precache state
         self._precached = False
 
+        # Show startup loading screen as early as possible
+        self._draw_loading_screen(self._loading_screen, "Starting up...", 0, 3)
+
         # Load initial save + background
         # Use the combined loader so GIF frames + save are ready
+        self._draw_loading_screen(self._loading_screen, "Loading save data...", 1, 3)
         self.load_game_and_background()
 
         # Start menu music after everything is loaded
         self._start_menu_music()
 
         # Check database completeness
+        self._draw_loading_screen(self._loading_screen, "Checking database...", 2, 3)
         self._check_database()
 
-        # Initialize achievement system
+        # Initialize achievement system (no startup scan - checks happen on drop-back)
         self._init_achievement_system()
 
     def _init_achievement_system(self):
@@ -832,326 +839,200 @@ class GameScreen:
                 )
                 print("[GameScreen] Achievement system initialized")
 
-                # Run initial achievement check on startup
-                self._check_all_achievements_on_startup()
+                # Cache for Sinew aggregate: {game_name: contribution_dict}
+                # Only the game that just changed is re-parsed; others use cached values.
+                self._sinew_game_data_cache = {}
             except Exception as e:
                 print(f"[GameScreen] Could not initialize achievements: {e}")
 
     def _check_all_achievements_on_startup(self):
-        """Check all achievements on startup by scanning all saves"""
+        """Check achievements on startup - only parses the current (last active) game.
+        Other games are handled lazily by _check_sinew_achievements_aggregate which
+        uses per-game caching and only re-parses the game that changed."""
         if not self._achievement_manager:
             return
 
-        print("[Achievements] Running startup check...")
+        # Determine current game from config SAVE_PATHS order
+        current_game_name = (
+            self.game_names[self.current_game]
+            if self.game_names and self.current_game < len(self.game_names)
+            else None
+        )
+        print(f"[Achievements] Startup check for current game: {current_game_name}")
 
         try:
-            # Check each game's achievements
-            for game_name, game_data in self.games.items():
-                if game_name == "Sinew":
-                    continue
+            if current_game_name and current_game_name != "Sinew":
+                game_data = self.games.get(current_game_name, {})
+                # Use canonical save path from config as source of truth
+                from config import SAVE_PATHS
+                sav_path = SAVE_PATHS.get(current_game_name, game_data.get("sav"))
 
-                sav_path = game_data.get("sav")
-                if not sav_path or not os.path.exists(sav_path):
-                    print(f"[Achievements] Skipping {game_name} - no save file")
-                    continue
-
-                print(f"[Achievements] Loading {game_name} from: {sav_path}")
-
-                try:
-                    from save_data_manager import SaveDataManager
-
-                    manager = SaveDataManager()
-                    if not manager.load_save(sav_path):
-                        print(f"[Achievements] Failed to load save for {game_name}")
-                        continue
-
-                    # Verify the loaded game matches what we expect
-                    loaded_game = (
-                        manager.parser.game_code
-                        if hasattr(manager, "parser") and manager.parser
-                        else "unknown"
-                    )
-                    print(
-                        f"[Achievements] {game_name} loaded - game_code: {loaded_game}"
-                    )
-
-                    # Build save data dict
-                    pokedex_data = (
-                        manager.get_pokedex_count()
-                        if hasattr(manager, "get_pokedex_count")
-                        else {"caught": 0, "seen": 0}
-                    )
-                    party = manager.get_party() if hasattr(manager, "get_party") else []
-
-                    # Debug: show party Pokemon level data
-                    if party:
-                        for i, p in enumerate(party):
-                            if p and not p.get("empty"):
-                                print(
-                                    f"[Achievements] Startup {game_name} party[{i}]: level={p.get('level', 'NO LEVEL')}, species={p.get('species', '?')}"
-                                )
-                                break  # Just show first one
-
-                    # Get PC Pokemon - use get_box for properly enriched data
-                    pc_pokemon = []
+                if sav_path and os.path.exists(sav_path):
                     try:
-                        for box_num in range(1, 15):
-                            if hasattr(manager, "get_box"):
-                                box = manager.get_box(box_num)
-                                if box:
-                                    for p in box:
-                                        if p and not p.get("empty"):
-                                            pc_pokemon.append(p)
-                        # Debug: show first Pokemon's keys to verify level data exists
-                        if pc_pokemon:
-                            first = pc_pokemon[0]
-                            print(
-                                f"[Achievements] Startup {game_name} first PC Pokemon keys: {list(first.keys())[:10]}"
+                        from save_data_manager import SaveDataManager
+                        from achievements_data import check_achievement_unlocked, get_achievements_for
+
+                        manager = SaveDataManager()
+                        if manager.load_save(sav_path):
+                            loaded_game = (
+                                manager.parser.game_code
+                                if hasattr(manager, "parser") and manager.parser
+                                else "unknown"
                             )
-                            print(
-                                f"[Achievements] Startup {game_name} first PC Pokemon level: {first.get('level', 'NO LEVEL KEY')}"
+                            print(f"[Achievements] {current_game_name} loaded - game_code: {loaded_game}")
+
+                            pokedex_data = (
+                                manager.get_pokedex_count()
+                                if hasattr(manager, "get_pokedex_count")
+                                else {"caught": 0, "seen": 0}
                             )
+                            party = manager.get_party() if hasattr(manager, "get_party") else []
+
+                            if party:
+                                for p in party:
+                                    if p and not p.get("empty"):
+                                        print(f"[Achievements] Startup {current_game_name} party[0]: level={p.get('level', 'NO LEVEL')}, species={p.get('species', '?')}")
+                                        break
+
+                            pc_pokemon = []
+                            try:
+                                for box_num in range(1, 15):
+                                    if hasattr(manager, "get_box"):
+                                        box = manager.get_box(box_num)
+                                        if box:
+                                            for p in box:
+                                                if p and not p.get("empty"):
+                                                    pc_pokemon.append(p)
+                                if pc_pokemon:
+                                    first = pc_pokemon[0]
+                                    print(f"[Achievements] Startup {current_game_name} first PC Pokemon level: {first.get('level', 'NO LEVEL KEY')}")
+                            except Exception as e:
+                                print(f"[Achievements] Startup {current_game_name} PC load error: {e}")
+
+                            owned_list = []
+                            try:
+                                if hasattr(manager, "get_pokedex_data"):
+                                    pokedex = manager.get_pokedex_data()
+                                    owned_list = pokedex.get("owned_list", [])
+                            except Exception:
+                                pass
+
+                            playtime_hours = 0
+                            try:
+                                playtime = manager.get_play_time() if hasattr(manager, "get_play_time") else {}
+                                playtime_hours = (playtime.get("hours", 0) or 0) + ((playtime.get("minutes", 0) or 0) / 60.0)
+                            except Exception:
+                                pass
+
+                            ach_save_data = {
+                                "dex_caught": pokedex_data.get("caught", 0),
+                                "dex_seen": pokedex_data.get("seen", 0),
+                                "badges": manager.get_badge_count() if hasattr(manager, "get_badge_count") else 0,
+                                "money": manager.get_money() if hasattr(manager, "get_money") else 0,
+                                "party": party,
+                                "pc_pokemon": pc_pokemon,
+                                "owned_list": owned_list,
+                                "playtime_hours": playtime_hours,
+                            }
+
+                            game_achievements = get_achievements_for(current_game_name)
+                            pc_count = len([p for p in pc_pokemon if p and not p.get("empty")])
+                            party_count = len([p for p in party if p and not p.get("empty")])
+
+                            def _is_shiny(pokemon):
+                                if pokemon.get("is_shiny") or pokemon.get("shiny", False):
+                                    return True
+                                if not pokemon or pokemon.get("empty") or pokemon.get("egg"):
+                                    return False
+                                personality = pokemon.get("personality", 0)
+                                ot_id = pokemon.get("ot_id", 0)
+                                if personality == 0 or ot_id == 0:
+                                    return False
+                                tid = ot_id & 0xFFFF
+                                sid = (ot_id >> 16) & 0xFFFF
+                                return (tid ^ sid ^ (personality & 0xFFFF) ^ ((personality >> 16) & 0xFFFF)) < 8
+
+                            all_pokemon = [p for p in party + pc_pokemon if p and not p.get("empty")]
+                            max_level = max((p.get("level", 0) for p in all_pokemon), default=0)
+                            pokemon_over_30 = sum(1 for p in all_pokemon if p.get("level", 0) >= 30)
+                            pokemon_over_50 = sum(1 for p in all_pokemon if p.get("level", 0) >= 50)
+                            pokemon_over_70 = sum(1 for p in all_pokemon if p.get("level", 0) >= 70)
+                            pokemon_at_100 = sum(1 for p in all_pokemon if p.get("level", 0) >= 100)
+                            shiny_count = sum(1 for p in all_pokemon if _is_shiny(p))
+
+                            print(f"[Achievements] Startup {current_game_name}: dex={ach_save_data['dex_caught']}, badges={ach_save_data['badges']}, pc={pc_count}, party={party_count}, max_lv={max_level}")
+
+                            # Log any legendaries found
+                            legendary_ids = [144,145,146,150,151,377,378,379,380,381,382,383,384,385,386]
+                            found_legendaries = [s for s in legendary_ids if s in owned_list]
+                            if found_legendaries:
+                                print(f"[Achievements] Startup {current_game_name} has legendaries: {found_legendaries}")
+
+                            # Update per-game tracking
+                            self._achievement_manager.set_current_game(current_game_name)
+                            self._achievement_manager.update_tracking("dex_count", ach_save_data["dex_caught"])
+                            self._achievement_manager.update_tracking("dex_seen", ach_save_data["dex_seen"])
+                            self._achievement_manager.update_tracking("badges", ach_save_data["badges"])
+                            self._achievement_manager.update_tracking("money", ach_save_data["money"])
+                            self._achievement_manager.update_tracking("playtime_hours", playtime_hours)
+                            self._achievement_manager.update_tracking("party_size", party_count)
+                            self._achievement_manager.update_tracking("pc_pokemon", pc_count)
+                            self._achievement_manager.update_tracking("total_pokemon", pc_count + party_count)
+                            self._achievement_manager.update_tracking("any_pokemon_level", max_level)
+                            self._achievement_manager.update_tracking("pokemon_over_30", pokemon_over_30)
+                            self._achievement_manager.update_tracking("pokemon_over_50", pokemon_over_50)
+                            self._achievement_manager.update_tracking("pokemon_over_70", pokemon_over_70)
+                            self._achievement_manager.update_tracking("pokemon_at_100", pokemon_at_100)
+                            self._achievement_manager.update_tracking("shiny_count", shiny_count)
+                            self._achievement_manager.update_tracking("owned_set", set(owned_list))
+
+                            unlocked_count = 0
+                            for ach in game_achievements:
+                                if ach.get("game") != current_game_name:
+                                    continue
+                                if not self._achievement_manager.is_unlocked(ach["id"]):
+                                    if check_achievement_unlocked(ach, ach_save_data):
+                                        self._achievement_manager.progress[ach["id"]] = {
+                                            "unlocked": True,
+                                            "unlocked_at": time.time(),
+                                            "reward_claimed": False,
+                                        }
+                                        self._achievement_manager.stats["total_unlocked"] = (
+                                            self._achievement_manager.stats.get("total_unlocked", 0) + 1
+                                        )
+                                        self._achievement_manager.stats["total_points"] = (
+                                            self._achievement_manager.stats.get("total_points", 0) + ach.get("points", 0)
+                                        )
+                                        unlocked_count += 1
+
+                            if unlocked_count > 0:
+                                print(f"[Achievements] Startup: {current_game_name} - {unlocked_count} achievements unlocked")
+
                     except Exception as e:
-                        print(f"[Achievements] Startup {game_name} PC load error: {e}")
+                        print(f"[Achievements] Startup error for {current_game_name}: {e}")
+                else:
+                    print(f"[Achievements] Skipping {current_game_name} - no save file")
 
-                    # Get owned list
-                    owned_list = []
-                    try:
-                        if hasattr(manager, "get_pokedex_data"):
-                            pokedex = manager.get_pokedex_data()
-                            owned_list = pokedex.get("owned_list", [])
-                    except Exception:
-                        pass
-
-                    # Get playtime
-                    playtime_hours = 0
-                    try:
-                        playtime = (
-                            manager.get_play_time()
-                            if hasattr(manager, "get_play_time")
-                            else {}
-                        )
-                        playtime_hours = (playtime.get("hours", 0) or 0) + (
-                            (playtime.get("minutes", 0) or 0) / 60.0
-                        )
-                    except Exception:
-                        pass
-
-                    ach_save_data = {
-                        "dex_caught": pokedex_data.get("caught", 0),
-                        "dex_seen": pokedex_data.get("seen", 0),
-                        "badges": (
-                            manager.get_badge_count()
-                            if hasattr(manager, "get_badge_count")
-                            else 0
-                        ),
-                        "money": (
-                            manager.get_money() if hasattr(manager, "get_money") else 0
-                        ),
-                        "party": party,
-                        "pc_pokemon": pc_pokemon,
-                        "owned_list": owned_list,
-                        "playtime_hours": playtime_hours,
-                    }
-
-                    # Check achievements for this game (without notifications on startup)
-                    from achievements_data import (
-                        check_achievement_unlocked,
-                        get_achievements_for,
-                    )
-
-                    game_achievements = get_achievements_for(game_name)
-                    unlocked_count = 0
-
-                    # Debug: show save data summary
-                    pc_count = len([p for p in pc_pokemon if p and not p.get("empty")])
-                    party_count = len([p for p in party if p and not p.get("empty")])
-                    print(
-                        f"[Achievements] Startup {game_name}: dex={ach_save_data['dex_caught']}, money={ach_save_data['money']}, badges={ach_save_data['badges']}, pc={pc_count}, party={party_count}, owned={len(owned_list)} species"
-                    )
-
-                    # Debug: show legendary species in owned_list
-                    legendaries = [
-                        144,
-                        145,
-                        146,
-                        150,
-                        151,
-                        377,
-                        378,
-                        379,
-                        380,
-                        381,
-                        382,
-                        383,
-                        384,
-                        385,
-                        386,
-                    ]
-                    found_legendaries = [s for s in legendaries if s in owned_list]
-                    if found_legendaries:
-                        print(
-                            f"[Achievements] Startup {game_name} has legendaries: {found_legendaries}"
-                        )
-
-                    # Calculate level stats from party and PC
-                    def is_pokemon_shiny(pokemon):
-                        """Calculate if a Pokemon is shiny from TID/SID/PID"""
-                        if pokemon.get("is_shiny") or pokemon.get("shiny", False):
-                            return True
-                        if not pokemon or pokemon.get("empty") or pokemon.get("egg"):
-                            return False
-                        personality = pokemon.get("personality", 0)
-                        ot_id = pokemon.get("ot_id", 0)
-                        tid = ot_id & 0xFFFF
-                        sid = (ot_id >> 16) & 0xFFFF
-                        pid_low = personality & 0xFFFF
-                        pid_high = (personality >> 16) & 0xFFFF
-                        shiny_value = tid ^ sid ^ pid_low ^ pid_high
-                        return shiny_value < 8
-
-                    all_pokemon = []
-                    for p in party:
-                        if p and not p.get("empty"):
-                            all_pokemon.append(p)
-                    for p in pc_pokemon:
-                        if p and not p.get("empty"):
-                            all_pokemon.append(p)
-
-                    max_level = 0
-                    pokemon_over_30 = 0
-                    pokemon_over_50 = 0
-                    pokemon_over_70 = 0
-                    pokemon_at_100 = 0
-                    shiny_count = 0
-
-                    for p in all_pokemon:
-                        level = p.get("level", 0)
-                        if level > max_level:
-                            max_level = level
-                        if level >= 30:
-                            pokemon_over_30 += 1
-                        if level >= 50:
-                            pokemon_over_50 += 1
-                        if level >= 70:
-                            pokemon_over_70 += 1
-                        if level >= 100:
-                            pokemon_at_100 += 1
-                        if is_pokemon_shiny(p):
-                            shiny_count += 1
-
-                    print(
-                        f"[Achievements] Startup {game_name} levels: max={max_level}, 30+={pokemon_over_30}, 50+={pokemon_over_50}, 70+={pokemon_over_70}, 100={pokemon_at_100}, shiny={shiny_count}"
-                    )
-
-                    # Update per-game tracking so progress bars display correctly
-                    self._achievement_manager.set_current_game(game_name)
-                    self._achievement_manager.update_tracking(
-                        "dex_count", ach_save_data["dex_caught"]
-                    )
-                    self._achievement_manager.update_tracking(
-                        "dex_seen", ach_save_data["dex_seen"]
-                    )
-                    self._achievement_manager.update_tracking(
-                        "badges", ach_save_data["badges"]
-                    )
-                    self._achievement_manager.update_tracking(
-                        "money", ach_save_data["money"]
-                    )
-                    self._achievement_manager.update_tracking(
-                        "playtime_hours", playtime_hours
-                    )
-                    self._achievement_manager.update_tracking("party_size", party_count)
-                    self._achievement_manager.update_tracking("pc_pokemon", pc_count)
-                    self._achievement_manager.update_tracking(
-                        "total_pokemon", pc_count + party_count
-                    )
-                    # Level stats
-                    self._achievement_manager.update_tracking(
-                        "any_pokemon_level", max_level
-                    )
-                    self._achievement_manager.update_tracking(
-                        "pokemon_over_30", pokemon_over_30
-                    )
-                    self._achievement_manager.update_tracking(
-                        "pokemon_over_50", pokemon_over_50
-                    )
-                    self._achievement_manager.update_tracking(
-                        "pokemon_over_70", pokemon_over_70
-                    )
-                    self._achievement_manager.update_tracking(
-                        "pokemon_at_100", pokemon_at_100
-                    )
-                    self._achievement_manager.update_tracking(
-                        "shiny_count", shiny_count
-                    )
-                    # Store owned_set for per-game legendary checks
-                    self._achievement_manager.update_tracking(
-                        "owned_set", set(owned_list)
-                    )
-
-                    for ach in game_achievements:
-                        # Guard: only unlock achievements that actually belong to this game.
-                        # achievements_data generates per-game lists but the 'game' field is the
-                        # authoritative source - double-check to prevent cross-contamination.
-                        if ach.get("game") != game_name:
-                            continue
-                        if not self._achievement_manager.is_unlocked(ach["id"]):
-                            if check_achievement_unlocked(ach, ach_save_data):
-                                # Unlock silently (no notification) - use proper format
-                                self._achievement_manager.progress[ach["id"]] = {
-                                    "unlocked": True,
-                                    "unlocked_at": time.time(),
-                                    "reward_claimed": False,
-                                }
-                                self._achievement_manager.stats["total_unlocked"] = (
-                                    self._achievement_manager.stats.get(
-                                        "total_unlocked", 0
-                                    )
-                                    + 1
-                                )
-                                self._achievement_manager.stats["total_points"] = (
-                                    self._achievement_manager.stats.get(
-                                        "total_points", 0
-                                    )
-                                    + ach.get("points", 0)
-                                )
-                                unlocked_count += 1
-
-                    if unlocked_count > 0:
-                        print(
-                            f"[Achievements] Startup: {game_name} - {unlocked_count} achievements unlocked"
-                        )
-
-                except Exception as e:
-                    print(f"[Achievements] Startup error for {game_name}: {e}")
-
-            # Check Sinew aggregate achievements
+            # Sinew aggregate: populates cache for ALL games (each only parsed once,
+            # subsequent calls only re-parse the game that changed).
             self._check_sinew_achievements_aggregate()
 
-            # Re-validate all unlocked achievements against current tracking data
-            # This will revoke any achievements that were incorrectly unlocked before
+            # Re-validate and save
             revoked = self._achievement_manager.revalidate_achievements()
             if revoked:
-                print(
-                    f"[Achievements] Revoked {len(revoked)} incorrectly unlocked achievements on startup"
-                )
+                print(f"[Achievements] Revoked {len(revoked)} incorrectly unlocked achievements on startup")
 
-            # Save progress
             self._achievement_manager._save_progress()
 
-            # Restore the global singleton manager to the currently viewed game.
-            # The startup scan creates temporary per-game managers, leaving the
-            # singleton pointing at whichever game was scanned last.  Re-load
-            # the current game so badge checks and UI reads are correct.
-            self._load_current_save()
+            # Restore context to current game
+            if current_game_name and current_game_name != "Sinew":
+                self._load_current_save()
 
             print("[Achievements] Startup check complete")
 
         except Exception as e:
             print(f"[Achievements] Startup check error: {e}")
             import traceback
-
             traceback.print_exc()
 
     def _check_achievements_for_current_game(self):
@@ -1439,230 +1320,191 @@ class GameScreen:
             traceback.print_exc()
 
     def _check_sinew_achievements_aggregate(self):
-        """Check Sinew achievements based on aggregate data from all saves"""
+        """Check Sinew achievements based on aggregate data from all saves.
+
+        PERFORMANCE: Uses self._sinew_game_data_cache to avoid re-parsing every
+        save on every call.  Only the currently active game is re-parsed from disk;
+        all other games use their cached contribution from the last time they were
+        the active game (or from startup).  Pass nothing - the current game is
+        always treated as the one that may have changed.
+        """
         if not self._achievement_manager:
             return
 
+        # Safety: ensure cache exists even if __init__ path was unusual
+        if not hasattr(self, "_sinew_game_data_cache"):
+            self._sinew_game_data_cache = {}
+
         def is_pokemon_shiny(pokemon):
             """Calculate if a Pokemon is shiny from TID/SID/PID"""
-            # First check if already set
             if pokemon.get("is_shiny") or pokemon.get("shiny", False):
                 return True
-
             if not pokemon or pokemon.get("empty") or pokemon.get("egg"):
                 return False
-
             personality = pokemon.get("personality", 0)
             ot_id = pokemon.get("ot_id", 0)
-
             if personality == 0 or ot_id == 0:
                 return False
-
-            # Extract trainer ID and secret ID
             tid = ot_id & 0xFFFF
             sid = (ot_id >> 16) & 0xFFFF
-
-            # Extract PID high and low
             pid_low = personality & 0xFFFF
             pid_high = (personality >> 16) & 0xFFFF
+            return (tid ^ sid ^ pid_low ^ pid_high) < 8
 
-            # Calculate shiny value
-            shiny_value = tid ^ sid ^ pid_low ^ pid_high
+        STARTER_LINES = [
+            {1, 2, 3},        # Bulbasaur line
+            {4, 5, 6},        # Charmander line
+            {7, 8, 9},        # Squirtle line
+            {252, 253, 254},  # Treecko line
+            {255, 256, 257},  # Torchic line
+            {258, 259, 260},  # Mudkip line
+        ]
+        EEVEELUTION_SPECIES = {133, 134, 135, 136, 196, 197}
 
-            # Pokemon is shiny if value < 8
-            return shiny_value < 8
+        # Which game just changed? Always the currently selected one.
+        current_game_name = (
+            self.game_names[self.current_game]
+            if self.game_names and self.current_game < len(self.game_names)
+            else None
+        )
+
+        def _parse_game_for_cache(game_name, sav_path):
+            """Parse one save file and return a contribution dict for the cache."""
+            from save_data_manager import SaveDataManager
+            from config import SAVE_PATHS
+            # Always use config as source of truth for save path
+            canonical_path = SAVE_PATHS.get(game_name, sav_path)
+            actual_path = canonical_path if os.path.exists(canonical_path) else sav_path
+
+            manager = SaveDataManager()
+            if not manager.load_save(actual_path):
+                print(f"[Achievements] Failed to load {game_name} for Sinew aggregate")
+                return None
+
+            badges = manager.get_badge_count() if hasattr(manager, "get_badge_count") else 0
+
+            party = manager.get_party() if hasattr(manager, "get_party") else []
+            active_party = [p for p in party if p and not p.get("empty")]
+
+            pc_pokemon = []
+            pc_count_raw = 0
+            try:
+                pc_count_raw = manager.get_pc_pokemon_count() if hasattr(manager, "get_pc_pokemon_count") else 0
+                for box_num in range(1, 15):
+                    if hasattr(manager, "get_box"):
+                        box = manager.get_box(box_num)
+                        if box:
+                            pc_pokemon.extend(p for p in box if p and not p.get("empty"))
+            except Exception:
+                pass
+
+            all_pokemon = active_party + pc_pokemon
+            level100 = sum(1 for p in all_pokemon if p.get("level", 0) >= 100)
+            level50plus = sum(1 for p in all_pokemon if p.get("level", 0) >= 50)
+            shiny_count = sum(1 for p in all_pokemon if is_pokemon_shiny(p))
+            eeveelutions = {p.get("species") for p in all_pokemon if p.get("species") in EEVEELUTION_SPECIES}
+
+            dex_caught = 0
+            owned_set = set()
+            try:
+                dex_data = manager.get_pokedex_count() if hasattr(manager, "get_pokedex_count") else {"caught": 0}
+                dex_caught = dex_data.get("caught", 0)
+                if hasattr(manager, "get_pokedex_data"):
+                    owned_set = set(manager.get_pokedex_data().get("owned_list", []))
+            except Exception:
+                pass
+
+            money = 0
+            try:
+                money = manager.get_money() if hasattr(manager, "get_money") else 0
+            except Exception:
+                pass
+
+            playtime_hours = 0.0
+            try:
+                pt = manager.get_play_time() if hasattr(manager, "get_play_time") else {}
+                playtime_hours = (pt.get("hours", 0) or 0) + ((pt.get("minutes", 0) or 0) / 60.0)
+            except Exception:
+                pass
+
+            is_frlg = game_name in ["FireRed", "LeafGreen"]
+            regional_size = 151 if is_frlg else 202
+
+            print(f"[Achievements] Sinew cache: {game_name} - {badges} badges, {dex_caught} dex, {len(all_pokemon)} pokemon")
+
+            return {
+                "badges": badges,
+                "dex_caught": dex_caught,
+                "money": money,
+                "playtime_hours": playtime_hours,
+                "games_with_badges": 1 if badges > 0 else 0,
+                "games_with_4plus_badges": 1 if badges >= 4 else 0,
+                "games_with_champion": 1 if badges >= 8 else 0,
+                "games_with_full_party": 1 if len(active_party) >= 6 else 0,
+                "games_with_full_dex": 1 if dex_caught >= regional_size else 0,
+                "owned_set": owned_set,
+                "pc_count": pc_count_raw,
+                "shiny_count": shiny_count,
+                "level100": level100,
+                "level50plus": level50plus,
+                "eeveelutions": eeveelutions,
+            }
 
         try:
-            from save_data_manager import SaveDataManager
+            # Update cache: re-parse current game, use cache for all others
+            for game_name, game_data in self.games.items():
+                if game_name == "Sinew":
+                    continue
+                sav_path = game_data.get("sav")
+                if not sav_path or not os.path.exists(sav_path):
+                    # Also check config canonical path
+                    from config import SAVE_PATHS
+                    sav_path = SAVE_PATHS.get(game_name, "")
+                    if not sav_path or not os.path.exists(sav_path):
+                        continue
 
-            # Gather aggregate stats from all saves
+                is_current = (game_name == current_game_name)
+                not_cached = (game_name not in self._sinew_game_data_cache)
+
+                if is_current or not_cached:
+                    contribution = _parse_game_for_cache(game_name, sav_path)
+                    if contribution is not None:
+                        self._sinew_game_data_cache[game_name] = contribution
+                # else: silently use existing cached values
+
+            # Aggregate from cache
             total_badges = 0
             total_dex_caught = 0
             total_money = 0
             total_playtime = 0.0
             games_with_badges = 0
             games_with_4plus_badges = 0
-            games_with_champion = 0  # 8 badges = champion
+            games_with_champion = 0
             games_with_full_party = 0
-            games_with_full_dex = 0  # Games with complete regional dex
-            combined_pokedex = (
-                set()
-            )  # Union of all owned Pokemon across saves (for Dirty Dex)
-
-            # Pokemon stats tracking
+            games_with_full_dex = 0
+            combined_pokedex = set()
             total_pc_pokemon = 0
             total_shiny_pokemon = 0
             total_level100 = 0
             total_level50plus = 0
-
-            # Special Pokemon tracking
-            # Gen 1 starters (available in FRLG): Bulbasaur, Charmander, Squirtle lines
-            # Gen 3 starters (RSE): Treecko, Torchic, Mudkip lines
-            # Track by evolution line - owning any from a line counts as 1
-            STARTER_LINES = [
-                {1, 2, 3},  # Bulbasaur line
-                {4, 5, 6},  # Charmander line
-                {7, 8, 9},  # Squirtle line
-                {252, 253, 254},  # Treecko line
-                {255, 256, 257},  # Torchic line
-                {258, 259, 260},  # Mudkip line
-            ]
-            EEVEELUTION_SPECIES = {
-                133,
-                134,
-                135,
-                136,
-                196,
-                197,
-            }  # Eevee + Gen 1-3 evolutions
-            starter_lines_owned = 0
-            owned_eeveelutions = set()
             owned_eeveelutions = set()
 
-            for game_name, game_data in self.games.items():
-                if game_name == "Sinew":
-                    continue
-
-                sav_path = game_data.get("sav")
-                if not sav_path or not os.path.exists(sav_path):
-                    continue
-
-                try:
-                    # Use SaveDataManager which has proper badge reading
-                    manager = SaveDataManager()
-                    if not manager.load_save(sav_path):
-                        print(f"[Achievements] Failed to load {game_name}")
-                        continue
-
-                    # Get badge count using the proper method
-                    badges = (
-                        manager.get_badge_count()
-                        if hasattr(manager, "get_badge_count")
-                        else 0
-                    )
-
-                    total_badges += badges
-                    if badges > 0:
-                        games_with_badges += 1
-                    if badges >= 4:
-                        games_with_4plus_badges += 1
-                    if badges >= 8:
-                        games_with_champion += 1
-
-                    # Get party Pokemon
-                    try:
-                        party = (
-                            manager.get_party() if hasattr(manager, "get_party") else []
-                        )
-                        if len([p for p in party if p and not p.get("empty")]) >= 6:
-                            games_with_full_party += 1
-
-                        for pokemon in party:
-                            if pokemon and not pokemon.get("empty"):
-                                level = pokemon.get("level", 0)
-                                species = pokemon.get("species", 0)
-
-                                if level >= 100:
-                                    total_level100 += 1
-                                if level >= 50:
-                                    total_level50plus += 1
-                                # Check for shiny - try both keys
-                                if is_pokemon_shiny(pokemon):
-                                    total_shiny_pokemon += 1
-
-                                if species in EEVEELUTION_SPECIES:
-                                    owned_eeveelutions.add(species)
-                    except Exception:
-                        pass
-
-                    # Get PC Pokemon
-                    try:
-                        pc_count = (
-                            manager.get_pc_pokemon_count()
-                            if hasattr(manager, "get_pc_pokemon_count")
-                            else 0
-                        )
-                        total_pc_pokemon += pc_count
-
-                        # Iterate through PC for levels and shinies - use get_box for enriched data
-                        for box_num in range(1, 15):
-                            if hasattr(manager, "get_box"):
-                                box = manager.get_box(box_num)
-                                if box:
-                                    for pokemon in box:
-                                        if pokemon and not pokemon.get("empty"):
-                                            level = pokemon.get("level", 0)
-                                            species = pokemon.get("species", 0)
-
-                                            if level >= 100:
-                                                total_level100 += 1
-                                            if level >= 50:
-                                                total_level50plus += 1
-                                            # Check for shiny using calculation
-                                            if is_pokemon_shiny(pokemon):
-                                                total_shiny_pokemon += 1
-
-                                            if species in EEVEELUTION_SPECIES:
-                                                owned_eeveelutions.add(species)
-                    except Exception:
-                        pass
-
-                    # Get pokedex count AND owned list
-                    try:
-                        dex_data = (
-                            manager.get_pokedex_count()
-                            if hasattr(manager, "get_pokedex_count")
-                            else {"caught": 0}
-                        )
-                        dex_caught = dex_data.get("caught", 0)
-                        total_dex_caught += dex_caught
-
-                        # Check for regional dex completion
-                        # FRLG = Kanto (151), RSE = Hoenn (202)
-                        is_frlg = game_name in ["FireRed", "LeafGreen"]
-                        regional_size = 151 if is_frlg else 202
-                        if dex_caught >= regional_size:
-                            games_with_full_dex += 1
-                            print(
-                                f"[Achievements] {game_name} has complete regional dex! ({dex_caught}/{regional_size})"
-                            )
-
-                        # Get actual owned list for combined pokedex (Dirty Dex)
-                        if hasattr(manager, "get_pokedex_data"):
-                            pokedex = manager.get_pokedex_data()
-                            owned_list = pokedex.get("owned_list", [])
-                            combined_pokedex.update(owned_list)
-                    except Exception:
-                        pass
-
-                    # Get money
-                    try:
-                        total_money += (
-                            manager.get_money() if hasattr(manager, "get_money") else 0
-                        )
-                    except Exception:
-                        pass
-
-                    # Get playtime
-                    try:
-                        playtime = (
-                            manager.get_play_time()
-                            if hasattr(manager, "get_play_time")
-                            else {}
-                        )
-                        hours = playtime.get("hours", 0) or 0
-                        minutes = playtime.get("minutes", 0) or 0
-                        total_playtime += hours + (minutes / 60.0)
-                    except Exception:
-                        pass
-
-                    print(
-                        f"[Achievements] {game_name}: {badges} badges, {pc_count if 'pc_count' in dir() else '?'} PC Pokemon"
-                    )
-
-                except Exception as e:
-                    print(f"[Achievements] Could not parse {game_name}: {e}")
-                    continue
+            for contrib in self._sinew_game_data_cache.values():
+                total_badges += contrib["badges"]
+                total_dex_caught += contrib["dex_caught"]
+                total_money += contrib["money"]
+                total_playtime += contrib["playtime_hours"]
+                games_with_badges += contrib["games_with_badges"]
+                games_with_4plus_badges += contrib["games_with_4plus_badges"]
+                games_with_champion += contrib["games_with_champion"]
+                games_with_full_party += contrib["games_with_full_party"]
+                games_with_full_dex += contrib["games_with_full_dex"]
+                combined_pokedex |= contrib["owned_set"]
+                total_pc_pokemon += contrib["pc_count"]
+                total_shiny_pokemon += contrib["shiny_count"]
+                total_level100 += contrib["level100"]
+                total_level50plus += contrib["level50plus"]
+                owned_eeveelutions |= contrib["eeveelutions"]
 
             # Also scan Sinew Storage for Pokemon stats
             try:
@@ -1686,33 +1528,23 @@ class GameScreen:
                                     if level >= 50:
                                         total_level50plus += 1
 
-                                    # Check for shiny using calculation
                                     if is_pokemon_shiny(pokemon):
                                         total_shiny_pokemon += 1
-                                        print(
-                                            f"[Achievements] Found shiny in Sinew: species {species} in box {box_num}"
-                                        )
+                                        print(f"[Achievements] Found shiny in Sinew: species {species} in box {box_num}")
 
-                                    # Add to combined pokedex
                                     if species:
                                         combined_pokedex.add(species)
 
-                                    # Check for eeveelutions
                                     if species in EEVEELUTION_SPECIES:
                                         owned_eeveelutions.add(species)
 
                     total_pc_pokemon += sinew_pokemon_count
-                    print(
-                        f"[Achievements] Sinew storage: {sinew_pokemon_count} Pokemon scanned, {total_shiny_pokemon} shiny found"
-                    )
+                    print(f"[Achievements] Sinew storage: {sinew_pokemon_count} Pokemon scanned, {total_shiny_pokemon} shiny found")
             except Exception as e:
                 print(f"[Achievements] Could not scan Sinew storage: {e}")
 
             # Count starter lines owned (using combined_pokedex)
-            starter_lines_owned = 0
-            for line in STARTER_LINES:
-                if line & combined_pokedex:  # If any species from line is in pokedex
-                    starter_lines_owned += 1
+            starter_lines_owned = sum(1 for line in STARTER_LINES if line & combined_pokedex)
 
             # Count eeveelutions from combined_pokedex too
             for species in EEVEELUTION_SPECIES:
@@ -2652,6 +2484,8 @@ class GameScreen:
 
     def _draw_loading_screen(self, screen, message, current, total):
         """Draw a loading screen with progress bar"""
+        if screen is None:
+            return
         screen.fill((30, 30, 40))  # Dark background
 
         # Title
@@ -2869,6 +2703,9 @@ class GameScreen:
             manager.load_save(sav_path)
         else:
             print(f"Save file not found: {sav_path}")
+            # Clear stale data so screens show empty/default state
+            # instead of the previously loaded game's data
+            get_manager().unload()
 
     def _reload_save_for_game(self, game_name):
         """Reload save for a specific game if it's currently active"""
@@ -4410,7 +4247,8 @@ if __name__ == "__main__":
 
     # Start with GameScreen using virtual resolution
     game_screen = GameScreen(
-        VIRTUAL_WIDTH, VIRTUAL_HEIGHT, font, controller=controller, scaler=scaler
+        VIRTUAL_WIDTH, VIRTUAL_HEIGHT, font, controller=controller, scaler=scaler,
+        screen=screen
     )
 
     # Precache all GIF backgrounds and save files to eliminate lag when switching

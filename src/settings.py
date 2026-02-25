@@ -11,7 +11,7 @@ import webbrowser
 import pygame
 
 import ui_colors  # Import module for dynamic theme colors
-from config import DATA_DIR, EXT_DIR, FONT_PATH, SETTINGS_FILE
+from config import DATA_DIR, EXT_DIR, FONT_PATH, POKEMON_DB_PATH, SETTINGS_FILE
 from controller import NavigableList, get_controller
 
 
@@ -1146,7 +1146,7 @@ class MainSetup:
                 },
             ],
             "Info": [
-                {"name": "Sinew Version", "type": "label", "value": "v1.3.3"},
+                {"name": "Sinew Version", "type": "label", "value": "v1.3.4"},
                 {"name": "Author", "type": "label", "value": "Cameron Penna"},
                 {"name": "Pokemon DB Status", "type": "label", "value": "Checking..."},
                 {"name": "About/Legal", "type": "button"},
@@ -1154,7 +1154,6 @@ class MainSetup:
             ],
             "Dev": [
                 {"name": "Use External Emulator", "type": "toggle", "value": False},
-                {"name": "Clear Cache", "type": "button"},
                 {"name": "Reset ALL Achievements", "type": "button"},
                 {"name": "Reset Game Achievements...", "type": "button"},
                 {"name": "Export Achievement Data", "type": "button"},
@@ -1217,7 +1216,7 @@ class MainSetup:
     # -------------------
     def _get_pokemon_db_status(self):
         """Get the current Pokemon database status"""
-        db_path = os.path.join(DATA_DIR, "pokemon_db.json")
+        db_path = POKEMON_DB_PATH
 
         if not os.path.exists(db_path):
             return "Not Built"
@@ -1414,16 +1413,6 @@ class MainSetup:
                 )
             else:
                 print("[Settings] Themes screen not available")
-        elif name == "Clear Cache":
-            self._set_sub_screen(
-                ConfirmationPopup(
-                    self.width,
-                    self.height,
-                    "Clear all cache data?",
-                    on_confirm=self._do_clear_cache,
-                    on_cancel=self._close_sub_screen,
-                )
-            )
         elif name == "Build/Rebuild Pokemon DB":
             print("[Settings] Opening Pokemon DB builder...")
             if self.db_builder_callback:
@@ -1561,58 +1550,6 @@ class MainSetup:
                     break
         except Exception:
             pass
-
-    def _do_clear_cache(self):
-        """Called after confirmation to clear cache"""
-        self.sub_screen = None
-        self._clear_cache()
-
-    def _clear_cache(self):
-        """Clear all cached data"""
-        import shutil
-
-        cleared_items = []
-
-        # Clear save parser cache
-        try:
-            from save_data_manager import clear_save_cache
-
-            clear_save_cache()
-            cleared_items.append("save cache")
-        except Exception as e:
-            print(f"[Settings] Error clearing save cache: {e}")
-
-        # Clear sprite cache folder if it exists
-        sprite_cache_dir = os.path.join(DATA_DIR, "cache")
-        if os.path.exists(sprite_cache_dir):
-            try:
-                shutil.rmtree(sprite_cache_dir)
-                os.makedirs(sprite_cache_dir, exist_ok=True)
-                cleared_items.append("sprite cache")
-            except Exception as e:
-                print(f"[Settings] Error clearing sprite cache: {e}")
-
-        # Clear __pycache__ folders
-        for (
-            root,
-            dirs,
-        ) in os.walk("."):
-            for d in dirs:
-                if d == "__pycache__":
-                    cache_path = os.path.join(root, d)
-                    try:
-                        shutil.rmtree(cache_path)
-                        if "pycache" not in cleared_items:
-                            cleared_items.append("pycache")
-                    except Exception:
-                        pass
-
-        if cleared_items:
-            print(f"[Settings] Cleared: {', '.join(cleared_items)}")
-            self._show_cache_status(f"Cleared: {', '.join(cleared_items)}")
-        else:
-            print("[Settings] No cache to clear")
-            self._show_cache_status("Cache already empty")
 
     def _show_cache_status(self, message):
         """Show cache clear status message"""

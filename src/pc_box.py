@@ -14,13 +14,16 @@ import ui_colors
 from config import (
     FONT_PATH,
     GEN3_NORMAL_DIR,
+    GEN3_SHINY_DIR,
     POKEMON_DB_PATH,
+    SETTINGS_FILE,
     SPRITES_DIR,
+    get_egg_sprite_path,
     get_sprite_path,
 )
 from gif_sprite_handler import get_sprite_cache
 from save_data_manager import get_manager
-from ui_components import Button
+from ui_components import Button, scale_surface_preserve_aspect
 
 # Try to import achievements
 try:
@@ -2089,9 +2092,9 @@ class PCBox:
         if sprite_path and os.path.exists(sprite_path):
             try:
                 self.moving_sprite = pygame.image.load(sprite_path).convert_alpha()
-                # Scale to reasonable size for cursor
-                self.moving_sprite = pygame.transform.scale(
-                    self.moving_sprite, (40, 40)
+                # Scale to reasonable size for cursor, preserving aspect ratio
+                self.moving_sprite = scale_surface_preserve_aspect(
+                    self.moving_sprite, 40, 40
                 )
             except Exception as e:
                 print(f"Failed to load moving sprite: {e}")
@@ -2106,7 +2109,7 @@ class PCBox:
 
         # Handle eggs
         if pokemon.get("egg"):
-            egg_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
+            egg_path = get_egg_sprite_path("gen3")
             if os.path.exists(egg_path):
                 return egg_path
             return None
@@ -2122,9 +2125,7 @@ class PCBox:
         species_str = str(species).zfill(3)
 
         # Build sprite path
-        sprite_folder = (
-            os.path.join(GEN3_NORMAL_DIR, "shiny") if shiny else GEN3_NORMAL_DIR
-        )
+        sprite_folder = GEN3_SHINY_DIR if shiny else GEN3_NORMAL_DIR
         sprite_path = os.path.join(sprite_folder, f"{species_str}.png")
 
         if os.path.exists(sprite_path):
@@ -2431,9 +2432,11 @@ class PCBox:
         # Get destination save path
         current_save_path = getattr(self.manager, "current_save_path", None)
         if not current_save_path:
-            self._show_warning("No save file loaded!")
-            self._cancel_move_mode()
-            return
+            dest_game_name = dest_game or "destination game"
+            self._show_warning(
+                f"No save file loaded\nfor {dest_game_name}!\nLoad a save first."
+            )
+            return  # Keep move mode active so user can drop Pokemon elsewhere
 
         # Check that destination save has PC storage initialized (requires Pokedex).
         # Saves made before receiving the Pokedex have uninitialized section IDs (0xFFFF)
@@ -2770,6 +2773,14 @@ class PCBox:
         # Get the current save path for destination
         current_save_path = getattr(self.manager, "current_save_path", None)
 
+        # Block transfer if destination game has no save file loaded
+        if not current_save_path:
+            dest_game_name = self.get_current_game() or "destination game"
+            self._show_warning(
+                f"No save file loaded\nfor {dest_game_name}!\nLoad a save first."
+            )
+            return  # Keep move mode active so user can drop Pokemon elsewhere
+
         # Check that destination save has PC storage initialized (requires Pokedex).
         # Saves made before receiving the Pokedex have uninitialized section IDs (0xFFFF).
         if SAVE_WRITER_AVAILABLE and current_save_path:
@@ -3036,8 +3047,8 @@ class PCBox:
 
         default = {"type": "combo", "buttons": ["START", "SELECT"]}
         try:
-            if os.path.exists("sinew_settings.json"):
-                with open("sinew_settings.json", "r") as f:
+            if os.path.exists(SETTINGS_FILE):
+                with open(SETTINGS_FILE, "r") as f:
                     settings = json.load(f)
                     if "pause_combo" in settings:
                         return settings["pause_combo"]
@@ -3504,8 +3515,8 @@ class PCBox:
             self.current_sprite_image = None
             return
         img = pygame.image.load(path).convert_alpha()
-        img = pygame.transform.smoothscale(
-            img, (int(self.sprite_area.width - 4), int(self.sprite_area.height - 4))
+        img = scale_surface_preserve_aspect(
+            img, int(self.sprite_area.width - 4), int(self.sprite_area.height - 4)
         )
         self.current_sprite_image = img
 
@@ -3768,7 +3779,7 @@ class PCBox:
             # For eggs, draw egg sprite
             elif poke and poke.get("egg"):
                 # Try to load egg sprite
-                egg_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
+                egg_path = get_egg_sprite_path("gen3")
                 if os.path.exists(egg_path):
                     try:
                         egg_sprite = pygame.image.load(egg_path).convert_alpha()
@@ -3944,7 +3955,7 @@ class PCBox:
             # Check if it's an egg
             if self.selected_pokemon.get("egg"):
                 # Show egg sprite (try PNG, then GIF)
-                egg_png_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
+                egg_png_path = get_egg_sprite_path("gen3")
                 egg_gif_path = os.path.join(
                     SPRITES_DIR, "showdown", "normal", "egg.gif"
                 )
@@ -3955,9 +3966,7 @@ class PCBox:
                         egg_sprite = pygame.image.load(egg_png_path).convert_alpha()
                         sprite_width = int(self.sprite_area.width * 0.9)
                         sprite_height = int(self.sprite_area.height * 0.9)
-                        egg_sprite = pygame.transform.smoothscale(
-                            egg_sprite, (sprite_width, sprite_height)
-                        )
+                        egg_sprite = scale_surface_preserve_aspect(egg_sprite, sprite_width, sprite_height)
                         rect = egg_sprite.get_rect(center=self.sprite_area.center)
                         surf.blit(egg_sprite, rect.topleft)
                     except Exception:
@@ -3982,12 +3991,10 @@ class PCBox:
                     try:
                         # Load PNG sprite
                         poke_sprite = pygame.image.load(sprite_path).convert_alpha()
-                        # Scale to fit display area
+                        # Scale to fit display area, preserving aspect ratio
                         sprite_width = int(self.sprite_area.width * 0.9)
                         sprite_height = int(self.sprite_area.height * 0.9)
-                        poke_sprite = pygame.transform.smoothscale(
-                            poke_sprite, (sprite_width, sprite_height)
-                        )
+                        poke_sprite = scale_surface_preserve_aspect(poke_sprite, sprite_width, sprite_height)
                         rect = poke_sprite.get_rect(center=self.sprite_area.center)
                         surf.blit(poke_sprite, rect.topleft)
                     except Exception:
@@ -4051,20 +4058,35 @@ class PCBox:
 
                 lines = []
 
-                # If has nickname AND it's different from species name
-                if (
+                # Helper: detect fallback/unknown species names like "#151" or "Pokemon #151"
+                def is_fallback_species(name):
+                    if not name:
+                        return True
+                    n = name.strip()
+                    return n.startswith("#") or ("Pokemon #" in n) or ("pokemon #" in n.lower())
+
+                # Determine if the pokemon has a real custom nickname.
+                # In Gen 3, a non-nicknamed Pokemon has its nickname set to the
+                # species name in uppercase, so they match case-insensitively.
+                species_is_known = species_name and not is_fallback_species(species_name)
+                has_real_nickname = (
                     nickname
-                    and species_name
-                    and nickname.upper() != species_name.upper()
-                ):
+                    and species_is_known
+                    and nickname.upper().strip() != species_name.upper().strip()
+                )
+
+                if has_real_nickname:
+                    # Genuinely nicknamed: show nickname + (SpeciesName) below
                     lines.append(nickname)
                     lines.append(f"({species_name})")
                     lines.append(f"Lv.{level}")
-                elif nickname:
-                    lines.append(nickname)
-                    lines.append(f"Lv.{level}")
-                elif species_name:
+                elif species_is_known:
+                    # No custom nickname - just show species name, no sub-label
                     lines.append(species_name)
+                    lines.append(f"Lv.{level}")
+                elif nickname and not is_fallback_species(nickname):
+                    # Species unknown but nickname looks valid - show it
+                    lines.append(nickname)
                     lines.append(f"Lv.{level}")
                 else:
                     lines.append("???")
@@ -4413,8 +4435,8 @@ class PCBox:
                                     sprite_size = int(
                                         min(slot.width, slot.height) * 0.7
                                     )
-                                    sprite = pygame.transform.smoothscale(
-                                        sprite, (sprite_size, sprite_size)
+                                    sprite = scale_surface_preserve_aspect(
+                                        sprite, sprite_size, sprite_size
                                     )
                                     sprite_rect = sprite.get_rect(center=slot.center)
                                     surf.blit(sprite, sprite_rect)
@@ -4438,19 +4460,19 @@ class PCBox:
                                 pass
                     else:
                         # Draw egg sprite for eggs
-                        egg_path = os.path.join(GEN3_NORMAL_DIR, "egg.png")
+                        egg_path = get_egg_sprite_path("gen3")
                         if os.path.exists(egg_path):
                             try:
                                 egg_sprite = self.sprite_cache.get_png_sprite(
                                     egg_path, size=None
                                 )
                                 if egg_sprite:
-                                    # Scale to fit slot with margin
+                                    # Scale to fit slot with margin, preserving aspect ratio
                                     sprite_size = int(
                                         min(slot.width, slot.height) * 0.7
                                     )
-                                    egg_sprite = pygame.transform.smoothscale(
-                                        egg_sprite, (sprite_size, sprite_size)
+                                    egg_sprite = scale_surface_preserve_aspect(
+                                        egg_sprite, sprite_size, sprite_size
                                     )
                                     sprite_rect = egg_sprite.get_rect(
                                         center=slot.center
@@ -5204,8 +5226,8 @@ class PCBox:
                         if os.path.exists(sprite_path):
                             try:
                                 sprite = pygame.image.load(sprite_path).convert_alpha()
-                                # Scale to 48x48
-                                sprite = pygame.transform.scale(sprite, (48, 48))
+                                # Scale to 48x48, preserving aspect ratio
+                                sprite = scale_surface_preserve_aspect(sprite, 48, 48)
                                 break
                             except Exception:
                                 continue

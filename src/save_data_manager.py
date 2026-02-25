@@ -66,9 +66,12 @@ def _load_species_names():
         try:
             with open(POKEMON_DB_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            for value in data.items():
-                if isinstance(value, dict) and "id" in value and "name" in value:
-                    _species_names[value["id"]] = value["name"]
+            for key, value in data.items():
+                if isinstance(value, dict) and "name" in value:
+                    try:
+                        _species_names[int(key)] = value["name"]
+                    except (ValueError, TypeError):
+                        pass
         except Exception as e:
             print(f"[SaveDataManager] Failed to load species names: {e}")
 
@@ -187,6 +190,16 @@ class SaveDataManager:
     def save_path(self):
         """Get current save file path."""
         return self.current_save_path
+
+    def unload(self):
+        """
+        Unload the current save file and clear all state.
+        Called when switching to a game that has no save file,
+        so screens display empty/default data instead of stale data.
+        """
+        self.parser = None
+        self.current_save_path = None
+        self.loaded = False
 
     def reload(self):
         """

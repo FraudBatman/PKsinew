@@ -2085,7 +2085,7 @@ class PokemonGenerator:
             return self.generate_pokemon(self.recipes[achievement_id])
 
         # Fallback: search through recipes
-        for recipe in self.recipes.items():
+        for recipe in self.recipes.values():
             if recipe.get("achievement") == achievement_id:
                 return self.generate_pokemon(recipe)
 
@@ -2094,7 +2094,7 @@ class PokemonGenerator:
     def generate_for_echo(self, species_name: str) -> Optional[Tuple[bytes, Dict]]:
         """Generate a Pokemon for the Echo (Altering Cave) system."""
         # Find recipe by species name with echo delivery
-        for recipe in self.recipes.items():
+        for recipe in self.recipes.values():
             if recipe.get("species", "").lower() == species_name.lower():
                 if recipe.get("delivery") == "echo":
                     return self.generate_pokemon(recipe)
@@ -2118,7 +2118,7 @@ class PokemonGenerator:
     def get_echo_pokemon_list(self) -> List[Dict]:
         """Get list of available Echo Pokemon."""
         echo_pokemon = []
-        for recipe in self.recipes.items():
+        for recipe in self.recipes.values():
             if recipe.get("delivery") == "echo":
                 national_id = SPECIES_NAME_TO_ID.get(recipe.get("species", ""), 0)
                 echo_pokemon.append(
@@ -2142,6 +2142,9 @@ def get_pokemon_generator() -> PokemonGenerator:
     global _generator_instance
     if _generator_instance is None:
         _generator_instance = PokemonGenerator()
+    else:
+        # Refresh recipes in case rewards.json was updated since last call
+        _generator_instance._load_recipes()
     return _generator_instance
 
 

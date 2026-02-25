@@ -6,7 +6,7 @@ Handles loading, applying, and saving theme preferences
 import json
 import os
 
-from config import FONT_PATH, FONTS_DIR, SAVES_DIR, THEMES_DIR
+from config import FONT_PATH, FONTS_DIR, SAVES_DIR, SETTINGS_FILE, THEMES_DIR
 
 # Default theme values (Dark theme)
 DEFAULT_THEME = {
@@ -192,7 +192,7 @@ def save_theme_preference(theme_name, settings_path=None):
         settings_path: Path to settings JSON file
     """
     # Use absolute path for settings
-    settings_path = os.path.join(SAVES_DIR, "sinew_settings.json")
+    settings_path = SETTINGS_FILE
 
     settings = {}
 
@@ -225,7 +225,7 @@ def load_theme_preference(settings_path=None):
         str: Name of the loaded theme
     """
     # Use absolute path for settings
-    settings_path = os.path.join(SAVES_DIR, "sinew_settings.json")
+    settings_path = SETTINGS_FILE
 
     theme_name = "Dark"  # Default
 
