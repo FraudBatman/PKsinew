@@ -92,40 +92,55 @@ jobs:
           path: dist/
           retention-days: 1
 
-  create-release:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+create-release:
+  needs: build
+  runs-on: ubuntu-latest
+  permissions:
+    contents: write
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./release-assets
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Read Changelog
-        id: changelog
-        run: |
-          if [ -f "dist/changelog.txt" ]; then
-            echo "body<<EOF" >> $GITHUB_OUTPUT
-            cat dist/changelog.txt >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "body=Could not find changelog." >> $GITHUB_OUTPUT
-          fi
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./release-assets
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.version }}
-          name: Release ${{ inputs.version }}
-          body: ${{ steps.changelog.outputs.body }}
-          target_commitish: ${{ github.sha }}
-          prerelease: ${{ inputs.is_prerelease }}
-          files: ./release-assets/**/*
-          generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Extract relevant changelog section
+      id: changelog
+      run: |
+        VERSION="PKsinew ${{ inputs.version }}"
+
+        awk "/^${VERSION}$/,/^=+$/ " CHANGELOG.md > release_notes.txt
+
+        # Remove the trailing ===== separator if present
+        sed -i '${/^=\\+$/d;}' release_notes.txt
+
+        echo "body<<EOF" >> $GITHUB_OUTPUT
+        cat release_notes.txt >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create and push tag (if not exists)
+      run: |
+        git fetch --tags
+        if git rev-parse "${{ inputs.version }}" >/dev/null 2>&1; then
+          echo "Tag already exists. Skipping tag creation."
+        else
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "${{ inputs.version }}"
+          git push origin "${{ inputs.version }}"
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ inputs.version }}
+        name: Release ${{ inputs.version }}
+        body: ${{ steps.changelog.outputs.body }}
+        prerelease: ${{ inputs.is_prerelease }}
+        files: ./release-assets/**/*
+        generate_release_notes: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
