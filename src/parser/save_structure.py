@@ -176,8 +176,8 @@ def detect_game_type(data, section_offsets):
     Detect whether the save is from FRLG, Ruby/Sapphire, or Emerald.
 
     Uses multiple heuristics to determine game type:
-    1. Check game code in Section 0 (to determine if RSE or FRLG)
-    2. Check save data location only used by Emerald (to determing RS vs. E)
+    1. Check game code in Section 0 (to determine if Ruby/Sapphire/Emerald or FRLG)
+    2. Check save data location only used by Emerald (to determing Ruby/Sapphire vs. Emerald)
 
     Args:
         data: Save file data
@@ -221,6 +221,9 @@ def detect_game_type(data, section_offsets):
     if gamecode_value == 0: #RS, no battle tower
         print ("[GameDetect] Ruby/Sapphire detected: Game Code value was 0")
         return "RS", "Ruby/Sapphire"
+
+    #past byte 890 (up till the section footer) is only used by Emerald
+    #use that to distinguish RS v. E
 
     emerald_only_data = data[section0_offset + 0x890 : section0_offset + 0xF2C]
 
