@@ -43,7 +43,7 @@ SYSTEM_DIR = os.path.join(EXT_DIR, "system")
 
 # Sinew-specific save paths
 ACH_SAVE_PATH = os.path.join(SAVES_DIR, "sinew", "achievements_progress.json")
-ACH_REWARDS_PATH = os.path.join(SAVES_DIR, "sinew", "rewards")
+ACH_REWARDS_PATH = os.path.join(DATA_DIR, "achievements", "rewards", "rewards.json")
 SETTINGS_FILE = os.path.join(SAVES_DIR, "sinew", "sinew_settings.json")
 
 # Sprite directories

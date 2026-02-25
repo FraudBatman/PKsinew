@@ -11,7 +11,7 @@ import time
 import pygame
 
 import ui_colors
-from config import ACH_SAVE_PATH, FONT_PATH
+from config import ACH_SAVE_PATH, FONT_PATH, SETTINGS_FILE, SPRITES_DIR
 from controller import get_controller
 
 # Lazy imports to avoid circular import issues
@@ -76,7 +76,7 @@ class AchievementNotification:
         icon_size = 36  # Size for the notification icon
 
         for game_name, filename in self.GAME_ICON_FILES.items():
-            icon_path = os.path.join("data", "sprites", "icons", filename)
+            icon_path = os.path.join(SPRITES_DIR, "icons", filename)
             try:
                 if os.path.exists(icon_path):
                     icon = pygame.image.load(icon_path).convert_alpha()
@@ -978,11 +978,8 @@ class AchievementManager:
         """Unlock a theme by adding it to the unlocked themes list in settings"""
         try:
             import json
-            import os
 
-            settings_path = os.path.join(
-                os.path.dirname(__file__), "sinew_settings.json"
-            )
+            settings_path = SETTINGS_FILE
 
             # Load current settings
             settings = {}
@@ -1012,11 +1009,8 @@ class AchievementManager:
         """Check if a theme is already unlocked"""
         try:
             import json
-            import os
 
-            settings_path = os.path.join(
-                os.path.dirname(__file__), "sinew_settings.json"
-            )
+            settings_path = SETTINGS_FILE
 
             if os.path.exists(settings_path):
                 with open(settings_path, "r") as f:
@@ -2200,7 +2194,7 @@ class AchievementsScreen:
         icon_size = 24  # Size for the list icons
 
         for game_name, filename in self.GAME_ICON_FILES.items():
-            icon_path = os.path.join("data", "sprites", "icons", filename)
+            icon_path = os.path.join(SPRITES_DIR, "icons", filename)
             try:
                 if os.path.exists(icon_path):
                     icon = pygame.image.load(icon_path).convert_alpha()

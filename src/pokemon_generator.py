@@ -12,6 +12,8 @@ import random
 import struct
 from typing import Dict, List, Optional, Tuple, Union
 
+from config import ACH_REWARDS_PATH
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -1765,34 +1767,17 @@ class PokemonGenerator:
     def _load_recipes(self):
         """Load recipes from rewards.json if available."""
         try:
-            # Try multiple paths
-            paths = [
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "data",
-                    "achievements",
-                    "rewards",
-                    "rewards.json",
-                ),
-                os.path.join(os.path.dirname(__file__), "rewards.json"),
-                "data/achievements/rewards/rewards.json",
-                "rewards.json",
-            ]
-
-            for path in paths:
-                if os.path.exists(path):
-                    with open(path, "r") as f:
-                        data = json.load(f)
-                        # Use achievement ID as key if present, otherwise use species name
-                        # This prevents duplicate species from overwriting each other
-                        self.recipes = {}
-                        for r in data.get("rewards", []):
-                            key = r.get("achievement") or r.get("species", "")
-                            self.recipes[key] = r
-                        print(
-                            f"[PokemonGenerator] Loaded {len(self.recipes)} recipes from {path}"
-                        )
-                        return
+            if os.path.exists(ACH_REWARDS_PATH):
+                with open(ACH_REWARDS_PATH, "r") as f:
+                    data = json.load(f)
+                    # Use achievement ID as key if present, otherwise use species name
+                    # This prevents duplicate species from overwriting each other
+                    self.recipes = {}
+                    for r in data.get("rewards", []):
+                        key = r.get("achievement") or r.get("species", "")
+                        self.recipes[key] = r
+                    print(f"[PokemonGenerator] Loaded {len(self.recipes)} recipes from {ACH_REWARDS_PATH}")
+                    return
 
         except Exception as e:
             print(f"[PokemonGenerator] Could not load recipes: {e}")
@@ -2100,7 +2085,7 @@ class PokemonGenerator:
             return self.generate_pokemon(self.recipes[achievement_id])
 
         # Fallback: search through recipes
-        for recipe in self.recipes.items():
+        for recipe in self.recipes.values():
             if recipe.get("achievement") == achievement_id:
                 return self.generate_pokemon(recipe)
 
@@ -2109,7 +2094,7 @@ class PokemonGenerator:
     def generate_for_echo(self, species_name: str) -> Optional[Tuple[bytes, Dict]]:
         """Generate a Pokemon for the Echo (Altering Cave) system."""
         # Find recipe by species name with echo delivery
-        for recipe in self.recipes.items():
+        for recipe in self.recipes.values():
             if recipe.get("species", "").lower() == species_name.lower():
                 if recipe.get("delivery") == "echo":
                     return self.generate_pokemon(recipe)
@@ -2133,7 +2118,7 @@ class PokemonGenerator:
     def get_echo_pokemon_list(self) -> List[Dict]:
         """Get list of available Echo Pokemon."""
         echo_pokemon = []
-        for recipe in self.recipes.items():
+        for recipe in self.recipes.values():
             if recipe.get("delivery") == "echo":
                 national_id = SPECIES_NAME_TO_ID.get(recipe.get("species", ""), 0)
                 echo_pokemon.append(
@@ -2157,6 +2142,9 @@ def get_pokemon_generator() -> PokemonGenerator:
     global _generator_instance
     if _generator_instance is None:
         _generator_instance = PokemonGenerator()
+    else:
+        # Refresh recipes in case rewards.json was updated since last call
+        _generator_instance._load_recipes()
     return _generator_instance
 
 

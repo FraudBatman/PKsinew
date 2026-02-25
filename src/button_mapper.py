@@ -13,7 +13,7 @@ import os
 
 import pygame
 
-from config import FONT_PATH
+from config import FONT_PATH, SETTINGS_FILE
 from ui_colors import COLOR_HIGHLIGHT, COLOR_TEXT ,COLOR_BG, COLOR_BORDER
 
 
@@ -103,7 +103,7 @@ class ButtonMapper:
         "START": (0.09, 0.04),
     }
 
-    CONFIG_FILE = "sinew_settings.json"
+    CONFIG_FILE = SETTINGS_FILE
     CONFIG_KEY = "controller_mapping"
 
     def __init__(self, width, height, close_callback=None, controller=None):

@@ -59,7 +59,6 @@ _species_names = {}
 
 def _load_species_names():
     """Load species names from pokemon_db.json"""
-    global _species_names
     if _species_names:
         return  # Already loaded
 
@@ -67,9 +66,12 @@ def _load_species_names():
         try:
             with open(POKEMON_DB_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            for value in data.items():
-                if isinstance(value, dict) and "id" in value and "name" in value:
-                    _species_names[value["id"]] = value["name"]
+            for key, value in data.items():
+                if isinstance(value, dict) and "name" in value:
+                    try:
+                        _species_names[int(key)] = value["name"]
+                    except (ValueError, TypeError):
+                        pass
         except Exception as e:
             print(f"[SaveDataManager] Failed to load species names: {e}")
 
@@ -85,7 +87,6 @@ def precache_save(save_path):
     Pre-parse a save file and cache it.
     Returns True if successful, False otherwise.
     """
-    global _save_cache
 
     if not save_path or not os.path.exists(save_path):
         return False
@@ -124,7 +125,6 @@ def invalidate_save_cache(save_path):
     Args:
         save_path: Path to the save file to invalidate
     """
-    global _save_cache
     if save_path in _save_cache:
         del _save_cache[save_path]
         print(f"Invalidated cache for: {save_path}")
@@ -190,6 +190,16 @@ class SaveDataManager:
     def save_path(self):
         """Get current save file path."""
         return self.current_save_path
+
+    def unload(self):
+        """
+        Unload the current save file and clear all state.
+        Called when switching to a game that has no save file,
+        so screens display empty/default data instead of stale data.
+        """
+        self.parser = None
+        self.current_save_path = None
+        self.loaded = False
 
     def reload(self):
         """

@@ -9,7 +9,7 @@ import os
 import pygame
 
 import ui_colors
-from config import FONT_PATH
+from config import FONT_PATH, SETTINGS_FILE
 from controller import get_controller
 
 try:
@@ -95,9 +95,7 @@ class ThemesScreen:
 
         # Load manually unlocked themes from settings
         try:
-            settings_path = os.path.join(
-                os.path.dirname(__file__), "sinew_settings.json"
-            )
+            settings_path = SETTINGS_FILE
             if os.path.exists(settings_path):
                 with open(settings_path, "r") as f:
                     settings = json.load(f)
