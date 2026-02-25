@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'New version tag (e.g., v1.3.2)'
+        description: 'New version tag (e.g., v1.3.4)'
         required: true
         type: string
       is_prerelease:
@@ -107,7 +107,7 @@ jobs:
         with:
           path: ./release-assets
 
-      - name: Verify artifacts
+      - name: Verify release artifacts
         run: |
           echo "Listing release artifacts:"
           ls -R ./release-assets
@@ -121,7 +121,7 @@ jobs:
         run: |
           VERSION="PKsinew ${{ inputs.version }}"
 
-          # Extract changelog section for this version
+          # Extract only current version section from CHANGELOG.md
           awk "/^${VERSION}$/,/^=+$/ " CHANGELOG.md > release_notes.txt
           sed -i '${/^=\\+$/d;}' release_notes.txt
 
@@ -131,7 +131,7 @@ jobs:
             exit 1
           fi
 
-          # Write multiline body safely for GitHub Actions
+          # Write multiline output safely (unquoted EOF)
           echo "body<<END_OF_BODY" >> $GITHUB_OUTPUT
           cat release_notes.txt >> $GITHUB_OUTPUT
           echo "END_OF_BODY" >> $GITHUB_OUTPUT
@@ -139,11 +139,11 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
+          tag_name: ${{ inputs.version }}           # auto-create tag if missing
           name: Release ${{ inputs.version }}
           body: ${{ steps.changelog.outputs.body }}
           prerelease: ${{ inputs.is_prerelease }}
-          files: ./release-assets/**/*
+          files: ./release-assets/**/*               # attach all build artifacts
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
