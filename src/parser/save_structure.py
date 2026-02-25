@@ -176,8 +176,8 @@ def detect_game_type(data, section_offsets):
     Detect whether the save is from FRLG, Ruby/Sapphire, or Emerald.
 
     Uses multiple heuristics to determine game type:
-    1. Check game code in Section 0 (FRLG-specific field)
-    2. Check security key patterns
+    1. Check game code in Section 0 (to determine if RSE or FRLG)
+    2. Check save data location only used by Emerald (to determing RS vs. E)
 
     Args:
         data: Save file data
@@ -185,7 +185,7 @@ def detect_game_type(data, section_offsets):
 
     Returns:
         tuple: (game_type, game_name)
-            game_type: 'FRLG', 'RS', 'E', or 'INVALID'
+            game_type: 'FRLG', 'RS', or 'E'
             game_name: Human-readable game name
     """
     # Check for blank/corrupted save
@@ -209,7 +209,7 @@ def detect_game_type(data, section_offsets):
     # in FRLG, this value is always 1
     # in RSE, this is either the E security key, or RS battle tower data (0 if no battle tower)
 
-    gamecode_offset = section0_offset + 0x00AC
+    gamecode_offset = section0_offset + 0x0AC
     if gamecode_offset + 4 <= len(data):
         gamecode_value = struct.unpack(
             "<I", data[gamecode_offset : gamecode_offset + 4]
@@ -222,27 +222,14 @@ def detect_game_type(data, section_offsets):
         print ("[GameDetect] Ruby/Sapphire detected: Game Code value was 0")
         return "RS", "Ruby/Sapphire"
 
-    # Now we check money validity to distinguish between RS and E
-    rse_money_offset = section1_offset + 0x0490
-    if rse_money_offset + 4 <= len(data):
-        money_encrypted = struct.unpack(
-            "<I", data[rse_money_offset : rse_money_offset + 4]
-            )[0]
-        money_decrypted = money_encrypted ^ gamecode_value
+    emerald_only_data = data[section0_offset + 0x890 : section0_offset + 0xF2C]
 
-        # If decryption gives valid money, it's likely Emerald
-        if 0 <= money_decrypted <= 999999:
-            print(
-                f"[GameDetect] Emerald detected: security_key={gamecode_value}, money={money_decrypted}"
-            )
+    for byte in emerald_only_data : 
+        if byte != 0:
+            print("[GameDetect] Emerald detected, trainer data past 890 bytes.")
             return "E", "Emerald"
-        else:
-            # Key didn't work for money, probably RS with Battle Tower data
-            print(
-                f"[GameDetect] Ruby/Sapphire detected: security_key field={gamecode_value} (not valid key)"
-            )
-            return "RS", "Ruby/Sapphire"
-
+        
+    print("[GameDetect] Ruby/Sapphire detected: no trainer data past 890 bytes")
     return "RS", "Ruby/Sapphire"
 
 
