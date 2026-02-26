@@ -893,7 +893,7 @@ class GameScreen:
                         from achievements_data import check_achievement_unlocked, get_achievements_for
 
                         manager = SaveDataManager()
-                        if manager.load_save(sav_path):
+                        if manager.load_save(sav_path, game_data.get("type")):
                             loaded_game = (
                                 manager.parser.game_code
                                 if hasattr(manager, "parser") and manager.parser
@@ -1396,8 +1396,10 @@ class GameScreen:
             canonical_path = SAVE_PATHS.get(game_name, sav_path)
             actual_path = canonical_path if os.path.exists(canonical_path) else sav_path
 
+            game_type = self.games[game_name].get("type")
+
             manager = SaveDataManager()
-            if not manager.load_save(actual_path):
+            if not manager.load_save(actual_path, game_type):
                 print(f"[Achievements] Failed to load {game_name} for Sinew aggregate")
                 return None
 
@@ -2717,10 +2719,11 @@ class GameScreen:
             return
 
         sav_path = self.games[gname].get("sav")
+        game_type = self.games[gname].get("type")
 
         if sav_path and os.path.exists(sav_path):
             manager = get_manager()
-            manager.load_save(sav_path)
+            manager.load_save(sav_path, game_type)
         else:
             print(f"Save file not found: {sav_path}")
             # Clear stale data so screens show empty/default state
@@ -2736,9 +2739,10 @@ class GameScreen:
         current_game_name = self.game_names[self.current_game]
         if current_game_name == game_name:
             sav_path = self.games[game_name].get("sav")
+            game_type = self.games[game_name].get("type")
             if sav_path and os.path.exists(sav_path):
                 manager = get_manager()
-                manager.load_save(sav_path)
+                manager.load_save(sav_path, game_type)
 
         return True
 
@@ -2751,6 +2755,7 @@ class GameScreen:
             return
 
         sav_path = self.games[gname].get("sav")
+        game_type = self.games[gname].get("type")
 
         if sav_path and os.path.exists(sav_path):
             manager = get_manager()
@@ -2759,7 +2764,7 @@ class GameScreen:
                 manager.reload()
                 print(f"[Sinew] Force reloaded save for {gname}")
             else:
-                manager.load_save(sav_path)
+                manager.load_save(sav_path, game_type)
 
     # ----- NEW: separate index change from loading -----
     def change_game(self, delta):
