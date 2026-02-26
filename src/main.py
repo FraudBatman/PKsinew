@@ -449,10 +449,6 @@ def get_game_availability(game_data):
     return GAME_UNAVAILABLE
 
 
-# Detect games on module load
-GAMES = detect_games()
-
-
 def load_settings():
     """Load settings from sinew_settings.json"""
     if os.path.exists(SETTINGS_FILE):
