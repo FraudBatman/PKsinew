@@ -2,9 +2,11 @@
 Sinew Game Screen - Integrated Version
 """
 
+import hashlib
 import json
 import logging
 import os
+import struct
 import sys
 import time
 import builtins
@@ -238,41 +240,29 @@ GAME_MENU_ITEMS = [
 # Menu items for Sinew home screen (NO Events here - only per-game)
 SINEW_MENU_ITEMS = ["Pokedex", "PC Box", "Achievements", "Settings"]
 
-# Game definitions with keywords for flexible ROM detection
-# Keywords are checked against lowercase filename (without extension)
-# More specific keywords should come first to avoid false matches
+# Game definitions
 GAME_DEFINITIONS = {
     "Ruby": {
         "title_gif": os.path.join(SPRITES_DIR, "title", "ruby.gif"),
-        "keywords": ["ruby"],
-        "exclude": ["omega"],  # Exclude Omega Ruby (3DS)
     },
     "Sapphire": {
         "title_gif": os.path.join(SPRITES_DIR, "title", "sapphire.gif"),
-        "keywords": ["sapphire"],
-        "exclude": ["alpha"],  # Exclude Alpha Sapphire (3DS)
     },
     "Emerald": {
         "title_gif": os.path.join(SPRITES_DIR, "title", "emerald.gif"),
-        "keywords": ["emerald"],
-        "exclude": [],
     },
     "FireRed": {
         "title_gif": os.path.join(SPRITES_DIR, "title", "firered.gif"),
-        "keywords": ["firered", "fire red", "fire_red"],
-        "exclude": [],
     },
     "LeafGreen": {
         "title_gif": os.path.join(SPRITES_DIR, "title", "leafgreen.gif"),
-        "keywords": ["leafgreen", "leaf green", "leaf_green"],
-        "exclude": [],
     },
 }
 
 
 def find_rom_for_game(game_name, roms_dir):
     """
-    Search for a ROM file matching the game's keywords.
+    Search for a ROM file matching the game's serial and SHA1 hash
 
     Args:
         game_name: Name of the game (e.g., "FireRed")
@@ -284,9 +274,19 @@ def find_rom_for_game(game_name, roms_dir):
     if game_name not in GAME_DEFINITIONS:
         return None, None
 
-    game_def = GAME_DEFINITIONS[game_name]
-    keywords = game_def.get("keywords", [])
-    exclude = game_def.get("exclude", [])
+    if not os.path.isfile(DATA_DIR + '/games.json'):
+        print("[GameScreen] no games.json found. uh oh!")
+        return None, None
+
+    with open(DATA_DIR + '/games.json' , "r") as file:
+        all_game_ids = json.load(file)
+
+    game_ids = []
+
+    #limit game ids to those matching the game we're looking for
+    for id_set in all_game_ids:
+        if id_set["game"] == game_name:
+            game_ids.append(id_set)
 
     if not os.path.exists(roms_dir):
         return None, None
@@ -296,27 +296,45 @@ def find_rom_for_game(game_name, roms_dir):
         if not filename.lower().endswith((".gba", ".zip", ".7z")):
             continue
 
-        name_lower = filename.lower()
         base_name = os.path.splitext(filename)[0]
 
-        # Check exclusions first
-        excluded = False
-        for ex in exclude:
-            if ex.lower() in name_lower:
-                excluded = True
-                break
+        #pull the serial from the file's GBA header
+        with open(f"{roms_dir}/{filename}", "rb") as f:
+            game_data = bytearray(f.read())
 
-        if excluded:
-            continue
+        game_serial = struct.unpack(
+            "<4s", game_data[0x00AC : 0x00B0]
+        )[0].decode()
 
-        # Check if any keyword matches
-        for keyword in keywords:
-            if keyword.lower() in name_lower:
-                rom_path = os.path.join(roms_dir, filename)
-                # Save file uses the ROM's base name
-                sav_path = os.path.join(SAVES_DIR, base_name + ".sav")
-                print(f"[GameScreen] Found {game_name}: {filename}")
-                return rom_path, sav_path
+        serial_matches = []
+
+        #get all SKUs that match the file's serial
+        for id_set in game_ids:
+            if id_set["serial"] == game_serial:
+                serial_matches.append(id_set)
+
+        if len(serial_matches) == 1: #direct hit on the exact game
+            rom_path = os.path.join(roms_dir, filename)
+            # Save file uses the ROM's base name
+            sav_path = os.path.join(SAVES_DIR, base_name + ".sav")
+            print(f"[GameScreen] Found {game_name}: {filename}")
+            return rom_path, sav_path
+
+        elif len(serial_matches) > 1: #multiple possible SKUs, determine by hash
+            sha1 = hashlib.sha1(usedforsecurity=False)
+            sha1.update(game_data)
+            sha1_result = sha1.hexdigest()
+            for id_set in serial_matches:
+                if id_set["sha1"] == sha1_result: #found our version
+                    rom_path = os.path.join(roms_dir, filename)
+                    # Save file uses the ROM's base name
+                    sav_path = os.path.join(SAVES_DIR, base_name + ".sav")
+                    print(f"[GameScreen] Found {game_name}: {filename} | SKU: {id_set["name"]}")
+                    return rom_path, sav_path
+
+            print(f"[GameScreen] No matches found. Serial {game_serial} | SHA1 {sha1_result}")
+            return None, None
+
 
     return None, None
 
