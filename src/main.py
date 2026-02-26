@@ -8,8 +8,32 @@ import os
 import sys
 import time
 import builtins
+import platform as _platform
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+
+# --- ARM Linux SDL2 preload (MUST happen before pygame import) ---
+# The PyInstaller-bundled SDL2 lacks kmsdrm support on minimal CFWs (ROCKNIX, ArkOS, JELOS, etc.)
+# Preloading the system SDL2 globally fixes display initialisation on handhelds.
+# Falls back silently on systems that don't need it (AYN Thor, desktop Linux, Windows, macOS).
+if sys.platform == 'linux' and _platform.machine().lower() in ('aarch64', 'arm64', 'armv7l', 'armv6l'):
+    import ctypes as _ctypes
+    _sdl2_paths = [
+        '/usr/lib/libSDL2-2.0.so.0',
+        '/usr/lib/libSDL2.so',
+        '/usr/lib/aarch64-linux-gnu/libSDL2-2.0.so.0',
+        '/usr/lib/arm-linux-gnueabihf/libSDL2-2.0.so.0',
+        '/usr/local/lib/libSDL2.so',
+    ]
+    for _sdl2_path in _sdl2_paths:
+        try:
+            _ctypes.CDLL(_sdl2_path, mode=_ctypes.RTLD_GLOBAL)
+            print(f"[Main] Preloaded system SDL2: {_sdl2_path}")
+            break
+        except OSError:
+            continue
+    else:
+        print("[Main] System SDL2 not found in known paths, using bundled version")
 
 import pygame
 from PIL import Image, ImageSequence
