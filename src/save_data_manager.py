@@ -141,7 +141,7 @@ class SaveDataManager:
         self.current_save_path = None
         self.loaded = False
 
-    def load_save(self, save_path, game_type = ""):
+    def load_save(self, save_path, game_type = None):
         """
         Load a save file. Uses cache if available. Can also validate if save game matches its game
 
