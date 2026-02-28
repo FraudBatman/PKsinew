@@ -38,11 +38,6 @@ class LinuxRetroarch(EmulatorProvider):
     
         self.prefInst = preferredInstallation
 
-        # These are read by main.py
-        self.roms_dir = "/path/to/external/roms"
-        self.saves_dir = "/path/to/external/saves"
-        
-        
         # Initialize internal cache reference
         if "emulator_cache" not in self.settings:
             self.settings["emulator_cache"] = {}
@@ -89,7 +84,7 @@ class LinuxRetroarch(EmulatorProvider):
         for line in config_file:
             if line.startswith("libretro_directory = "):
                 cutline = line[:21]
-                if not os.path.isdir(cutline):
+                if not os.path.isdir(cutline): #john travolta meme looking for the-- you get the idea.
                     print("[Linux_RE] no cores directory found")
                     return False
                 else:
