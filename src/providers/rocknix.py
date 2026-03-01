@@ -8,6 +8,7 @@ import os
 import subprocess
 import signal
 import shlex
+import platform
 import xml.etree.ElementTree as ET
 from external_emulator import EmulatorProvider 
 from settings import save_sinew_settings
@@ -20,7 +21,18 @@ class RocknixProvider(EmulatorProvider):
 
     def __init__(self, sinew_settings):
         self.settings = sinew_settings
-        
+
+        # Skip all Linux-specific setup when running on a different OS.
+        # probe() will return False regardless; this just avoids noisy output
+        # and path expansions that make no sense on Windows/macOS.
+        if platform.system().lower() != "linux":
+            self.roms_dir = None
+            self.saves_dir = None
+            if "emulator_cache" not in self.settings:
+                self.settings["emulator_cache"] = {}
+            self.cache = self.settings["emulator_cache"]
+            return
+
         self.system_db = os.path.expanduser("~/.config/system/configs/system.cfg")
         self.es_systems_db = os.path.expanduser("~/.emulationstation/es_systems.cfg")
         self.retroarch_cfg = os.path.expanduser("~/.config/retroarch/retroarch.cfg")

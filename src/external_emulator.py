@@ -14,6 +14,7 @@ import platform
 import inspect
 import subprocess
 import threading
+import time
 import pygame
 from abc import ABC, abstractmethod
 
@@ -32,7 +33,8 @@ class EmulatorProvider(ABC):
         pass
 
     @abstractmethod
-    def probe(self, distro_id):
+    def probe(self, distro_id) -> bool:
+        """Return True if this provider is available and active on the current system."""
         pass
         
     @abstractmethod
@@ -85,12 +87,25 @@ class ExternalEmulator:
         return "generic"
 
     def _detect_environment(self):
+        if not self.providers:
+            print("[ExternalEmu] No providers registered (all have active = False).")
+            return
+
         for provider in self.providers:
-            if self.current_os in provider.supported_os:
-                if provider.probe(self.distro_id):
-                    self.active_provider = provider
-                    print(f"[ExternalEmu] Initialized {type(provider).__name__}")
-                    break
+            name = type(provider).__name__
+            if self.current_os not in provider.supported_os:
+                print(
+                    f"[ExternalEmu] Skipping {name}:"
+                    f" supports {provider.supported_os}, current OS is '{self.current_os}'"
+                )
+                continue
+            if provider.probe(self.distro_id):
+                self.active_provider = provider
+                print(f"[ExternalEmu] Initialized {name}")
+                return
+            print(f"[ExternalEmu] {name} probe failed.")
+
+        print("[ExternalEmu] No provider matched this environment.")
 
     def launch(self, rom_path, controller_manager, core="auto"):
         if not self.active_provider:
@@ -131,6 +146,7 @@ class ExternalEmulator:
                     self._exit_handled = True
                     self.active_provider.on_exit()
                     controller_manager.resume()
+                    self._restore_window()
 
             threading.Thread(target=wait_for_exit, daemon=True).start()
 
@@ -139,6 +155,26 @@ class ExternalEmulator:
             print(f"[ExternalEmu] Launch Error: {e}")
             controller_manager.resume()
             return False
+
+    def _restore_window(self):
+        """Restore and focus the Sinew window after the external emulator closes."""
+        # Give the OS a moment to fully clean up the emulator window.
+        time.sleep(0.3)
+        if platform.system().lower() == "windows":
+            try:
+                import ctypes
+                hwnd = pygame.display.get_wm_info().get("window")
+                if hwnd:
+                    SW_RESTORE = 9
+                    ctypes.windll.user32.ShowWindow(hwnd, SW_RESTORE)
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+                    print("[ExternalEmu] Window restored.")
+            except Exception as e:
+                print(f"[ExternalEmu] Window restore failed: {e}")
+        else:
+            # On Linux/macOS pygame.VIDEORESIZE or a display event will
+            # bring the window back; posting VIDEOEXPOSE nudges a redraw.
+            pygame.event.post(pygame.event.Event(pygame.VIDEOEXPOSE))
 
     def check_status(self):
         if self.process is None:
