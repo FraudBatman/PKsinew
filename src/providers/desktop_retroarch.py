@@ -6,7 +6,7 @@ desktop_retroarch.py
 Desktop provider for RetroArch on Linux, macOS, and Windows.
 
 Linux   — checks for the 'retroarch' package binary, then the Flatpak
-          org.libretro.Retroarch (preference is configurable).
+          org.libretro.RetroArch (preference is configurable).
 macOS   — checks for 'retroarch' in PATH (Homebrew / manual install),
           then the RetroArch.app bundle in /Applications.
 Windows — checks for 'retroarch.exe' in PATH, then the common default
@@ -182,7 +182,7 @@ class DesktopRetroarch(EmulatorProvider):
             result = self._find_flatpak()
             if result:
                 return result
-            print("[DesktopRetroarch] Flatpak org.libretro.Retroarch not found, trying PATH.")
+            print("[DesktopRetroarch] Flatpak org.libretro.RetroArch not found, trying PATH.")
             return self._find_binary("retroarch")
         result = self._find_binary("retroarch")
         if result:
@@ -247,15 +247,15 @@ class DesktopRetroarch(EmulatorProvider):
         return None
 
     def _find_flatpak(self) -> list[str] | None:
-        """Return the Flatpak run command if org.libretro.Retroarch is installed."""
+        """Return the Flatpak run command if org.libretro.RetroArch is installed."""
         try:
             result = subprocess.run(
-                ["flatpak", "info", "org.libretro.Retroarch"],
+                ["flatpak", "info", "org.libretro.RetroArch"],
                 capture_output=True,
                 check=False,
             )
             if result.returncode == 0:
-                return ["flatpak", "run", "org.libretro.Retroarch"]
+                return ["flatpak", "run", "org.libretro.RetroArch"]
         except FileNotFoundError:
             pass
         return None
@@ -275,14 +275,22 @@ class DesktopRetroarch(EmulatorProvider):
         """Return the path to retroarch.cfg for the current platform, or None."""
         candidates: list[str] = []
 
+        #needed for the flatpak path to work
+        #supposed to work cross-platform, may wanna try it on the MacOS stuff? -FB
+        home_path = os.path.expanduser("~")
+
         if _CURRENT_OS == "linux":
-            xdg_home = os.environ.get("XDG_CONFIG_HOME", "")
-            if xdg_home:
-                candidates.append(os.path.join(xdg_home, "retroarch", "retroarch.cfg"))
-            candidates += [
-                os.path.expanduser("~/.config/retroarch/retroarch.cfg"),
-                "/etc/retroarch.cfg",
-            ]
+            #flatpak installation of retroarch is entirely self contained. including config.
+            if self.retroarch_command[0] == "flatpak":
+                candidates.append(home_path + "/.var/app/org.libretro.RetroArch/config/retroarch/retroarch.cfg")
+            else:
+                xdg_home = os.environ.get("XDG_CONFIG_HOME", "")
+                if xdg_home:
+                    candidates.append(os.path.join(xdg_home, "retroarch", "retroarch.cfg"))
+                candidates += [
+                    os.path.expanduser("~/.config/retroarch/retroarch.cfg"),
+                    "/etc/retroarch.cfg",
+                ]
 
         elif _CURRENT_OS == "darwin":
             candidates += [
